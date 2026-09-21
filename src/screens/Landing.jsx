@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { getOrientationModules, getCurriculumOverview, ecmec } from '../lib/api'
 import { TraceBlock } from '../components/Primitives'
+import SignInForm from '../components/SignInForm'
 
 // Static illustration for the hero trace (no gated data — public-safe).
 const SAMPLE = {
@@ -15,9 +15,6 @@ const SAMPLE = {
 
 export default function Landing() {
   const nav = useNavigate()
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [authErr, setAuthErr] = useState(null)
   const [mods, setMods] = useState(null)
   const [modErr, setModErr] = useState(null)
   const [cur, setCur] = useState(null)
@@ -32,17 +29,6 @@ export default function Landing() {
       .catch((e) => setModErr(e.message))
     getCurriculumOverview().then(setCur).catch((e) => setCurErr(e.message))
   }, [])
-
-  async function requestAccess(e) {
-    e.preventDefault()
-    setAuthErr(null)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    })
-    if (error) setAuthErr(error.message)
-    else setSent(true)
-  }
 
   return (
     <div className="fade-up">
@@ -65,15 +51,7 @@ export default function Landing() {
               specialist curriculum frames it (EBCOG PACT), what it becomes at subspecialty level
               (ATCRM), and which ESHRE / NICE / ASRM guideline is the authority.
             </p>
-            <form className="magic" id="access" onSubmit={requestAccess}>
-              <input type="email" required placeholder="you@hospital.org"
-                value={email} onChange={(e) => setEmail(e.target.value)} />
-              <button className="btn primary" type="submit">{sent ? 'Link sent ✓' : 'Email me a sign-in link'}</button>
-            </form>
-            {sent
-              ? <div className="status-line"><span className="pulse" />Check your inbox — we emailed a one-time sign-in link.</div>
-              : <div className="magic-hint">We email a one-time sign-in link. <b>No passwords anywhere.</b></div>}
-            {authErr && <div className="magic-hint" style={{ color: 'var(--danger)' }}>{authErr}</div>}
+            <SignInForm />
           </div>
 
           <aside className="hero-trace card">

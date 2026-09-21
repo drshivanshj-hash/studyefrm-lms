@@ -91,3 +91,11 @@
 .cur-status { font-size: 11px; color: var(--inprod); }
 @media (max-width: 900px) { .cur-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .cur-grid { grid-template-columns: 1fr; } .cur-totals { gap: 18px; } }
+
+/* ── one-time code sign-in ─────────────────────────────────────────────── */
+.otp-input { font-family: var(--font-mono) !important; letter-spacing: 0.28em; text-align: center; font-size: 18px !important; }
+.otp-input::placeholder { letter-spacing: normal; font-family: var(--font-sans); font-size: 14.5px; }
+.otp-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+.otp-actions .linkbtn:disabled { opacity: .55; cursor: default; text-decoration: none; }
+.otp-err { color: var(--danger); }
+.magic .btn:disabled { opacity: .6; cursor: default; }
