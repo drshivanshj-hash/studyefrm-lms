@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vite
+.env
+.env.*
+!.env.example
+*.rtf
+*.key
+*.pem

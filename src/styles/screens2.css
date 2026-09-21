@@ -1,0 +1,103 @@
+/* StudyEFRM — domain detail, line view, dashboards */
+
+/* domain detail */
+.dd-title { display: flex; align-items: flex-start; gap: 13px; margin-top: 6px; }
+.dc-num.lg { width: 38px; height: 38px; border-radius: 9px; font-size: 16px; }
+.dc-num.sm { width: 26px; height: 26px; border-radius: 6px; font-size: 11px; }
+.dd-note { font-size: 12.5px; color: var(--ink-3); margin-top: 5px; }
+.dd-meta { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2);
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.dd-meta b { color: var(--ink); font-weight: 600; }
+.dd-meta .sep { color: var(--ink-4); }
+.dd-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+
+.list-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin: 4px 0 12px; }
+.list-head > span:first-child { font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--ink-2); }
+.list-count { font-size: 12px; color: var(--ink-3); }
+
+.linelist { overflow: hidden; }
+.linerow { display: flex; align-items: center; gap: 13px; padding: 13px 15px;
+  border-bottom: 1px solid var(--line-faint); cursor: pointer; transition: background 130ms var(--ease); }
+.linerow:last-child { border-bottom: none; }
+.linerow:hover { background: var(--surface-2); }
+.lr-code { font-size: 11.5px; width: 86px; flex: none; }
+.lr-text { font-size: 13.5px; color: var(--ink); flex: 1; line-height: 1.35; }
+.lr-g { flex: none; }
+.lr-arr { color: var(--ink-4); flex: none; font-size: 16px; }
+
+/* line view */
+.lineview { padding-bottom: 70px; }
+.lv-head { padding: 14px 0 6px; border-bottom: 1px solid var(--line); margin-bottom: 26px; }
+.lv-codeline { display: flex; align-items: center; gap: 12px; }
+.lv-code { font-size: 13px; color: var(--primary); }
+.lv-text { font-family: var(--font-serif); font-size: 26px; font-weight: 600; line-height: 1.22;
+  letter-spacing: -0.01em; color: var(--ink); margin: 14px 0 18px; max-width: 760px; text-wrap: balance; }
+.lv-section { margin-bottom: 30px; }
+.lv-eyebrow { margin-bottom: 14px; }
+.lv-trace-cap { font-size: 13.5px; line-height: 1.6; color: var(--ink-2); margin: 16px 0 0; max-width: 760px; }
+.lv-trace-cap b { color: var(--ink); font-weight: 600; }
+.lv-trace-cap .code { font-size: 12px; color: var(--primary); }
+.prod-stack { display: flex; flex-direction: column; gap: 10px; }
+.ph-t { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.ph-s { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.lv-note { font-size: 12px; color: var(--ink-3); margin-top: 14px; font-style: italic; }
+
+/* student dashboard */
+.dash-empties { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 4px; }
+.ph.dash { flex-direction: row; }
+.prog-strip { display: flex; flex-direction: column; gap: 8px; }
+.prog-row { display: flex; align-items: center; gap: 13px; padding: 12px 15px; }
+.pr-name { font-size: 13.5px; font-weight: 500; color: var(--ink); flex: 1; min-width: 140px; }
+.pr-meta { font-size: 11px; color: var(--ink-3); flex: none; width: 130px; text-align: right; }
+.pr-bar { width: 160px; flex: none; }
+.pr-pct { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); width: 34px; text-align: right; flex: none; }
+
+/* admin */
+.admin-card { padding: 6px 6px; overflow-x: auto; }
+.prodtable { width: 100%; border-collapse: collapse; min-width: 720px; }
+.prodtable th { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink-3); text-align: right; padding: 12px 12px 10px; border-bottom: 1px solid var(--line-strong); }
+.prodtable th.l { text-align: left; } .prodtable th.r { text-align: right; }
+.prodtable td { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-2); text-align: right;
+  padding: 11px 12px; border-bottom: 1px solid var(--line-faint); font-variant-numeric: tabular-nums; }
+.prodtable td.l { text-align: left; font-family: var(--font-sans); }
+.prodtable td.dom { color: var(--ink); font-weight: 600; }
+.prodtable td.z { color: var(--ink-4); }
+.prodtable td.r { text-align: right; }
+.prodtable tr:hover td { background: var(--surface-2); }
+.prodtable .did { font-family: var(--font-mono); color: var(--primary); font-weight: 600; margin-right: 9px; }
+.prodtable tfoot td { border-bottom: none; border-top: 1.5px solid var(--line-strong); color: var(--ink);
+  font-weight: 600; background: var(--surface-2); }
+.mini-cov { width: 70px; display: inline-block; }
+
+.queue-empty { padding: 0; }
+.qe-inner { padding: 34px 26px; text-align: center; }
+.qe-title { font-family: var(--font-serif); font-size: 18px; font-weight: 600; color: var(--ink); }
+.qe-sub { font-size: 13px; color: var(--ink-3); margin: 7px auto 18px; max-width: 420px; line-height: 1.55; }
+.qe-controls { display: flex; gap: 8px; justify-content: center; }
+.qe-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.danger { color: var(--danger); border-color: #E4C9C4; }
+
+@media (max-width: 1000px) {
+  .dash-empties { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .pr-meta { display: none; }
+  .pr-bar { width: 90px; }
+  .lv-text { font-size: 21px; }
+}
+
+/* ── Cycle panel on the domain page ──────────────────────────────────────── */
+.dd-cycle { display: flex; align-items: center; gap: 20px; margin: 4px 0 26px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-1); }
+.dd-cycle-b { min-width: 0; }
+.dd-cycle-h { font-family: var(--font-serif); font-size: var(--fs-h3); font-weight: var(--fw-semi); color: var(--ink); margin: 5px 0 3px; letter-spacing: var(--tracking-tight); }
+.dd-cycle-p { margin: 0; font-size: var(--fs-sm); color: var(--ink-2); line-height: var(--lh-snug); }
+@media (max-width: 640px) { .dd-cycle { flex-direction: column; align-items: flex-start; gap: 14px; } }
+
+/* phase pip on each line row */
+.lr-phase { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 7px; margin-right: 2px; }
+.lr-phase.carried { background: var(--phase-carried); }
+.lr-phase.due { background: var(--phase-due); }
+.lr-phase.open { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
