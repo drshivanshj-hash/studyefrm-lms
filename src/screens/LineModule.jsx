@@ -628,8 +628,8 @@ function EvidencePanel({ decon, recs, openRecs, toggleRec }) {
     <>
       <div className="lm-routine-intro"><b>Evidence &amp; vantage</b><span>Compare authorities, identify divergence, and drill from recommendations into their justification.</span></div>
       {(conv.length || div.length) ? <><div className="lm-h4">Multi-authority vantage</div><div className="lm-van">
-        <div className="lm-vcard conv"><div className="vh">Convergence — defend firmly</div>{conv.length ? <ul>{conv.map((x, i) => <li key={i}><SourceText>{x}</SourceText></li>)}</ul> : <p>No convergent claims recorded.</p>}</div>
-        <div className="lm-vcard div"><div className="vh">Divergence — distinction-makers</div>{div.length ? <ul>{div.map((x, i) => <li key={i}><SourceText>{x}</SourceText></li>)}</ul> : <p>No divergence recorded.</p>}</div>
+        {conv.length ? <div className="lm-vcard conv"><div className="vh">Convergence — defend firmly</div><ul>{conv.map((x, i) => <li key={i}><SourceText>{x}</SourceText></li>)}</ul></div> : null}
+        {div.length ? <div className="lm-vcard div"><div className="vh">Divergence — distinction-makers</div><ul>{div.map((x, i) => <li key={i}><SourceText>{x}</SourceText></li>)}</ul></div> : null}
       </div></> : null}
       {table.length > 0 && <div className="lm-table-wrap"><table className="lm-dv"><thead><tr><th>Feature</th><th>ESHRE/ASRM</th><th>NICE</th><th>Other</th></tr></thead><tbody>{table.map((r, i) => <tr key={i}>{r.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody></table></div>}
       {decon && <div className="lm-h4">Graded recommendations · {decon.guideline_name} {decon.guideline_year || ''}</div>}
@@ -697,9 +697,15 @@ function ModuleReferences({ content, anchors = [] }) {
   ;(content.recs || []).forEach((r) => add(r.source_meta?.references || r.source_meta?.citation))
   ;(content.osce || []).forEach((s) => add(s.candidate_brief?.source_evidence || s.source_evidence))
   ;(content.appraisals || []).forEach((a) => add(a.appraisal?.source_evidence || a.source_evidence))
+  // Source rows also carry authoring bookkeeping (locators such as "owner-downloaded
+  // article", internal "extract"/"synthesis" entries, mapping status). Candidates see
+  // the citation itself and its link; the bookkeeping stays in the database.
+  const label = (r) => String(r.vancouver || r.citation || r.title || r.doc_id || '').replace(/\s+adjacent\s*$/i, '').trim()
+  const INTERNAL = /\b(internal|not seeded|standalone|owner|preview|module synthesis|science synthesis|extract)\b/i
   const unique = [...new Map(refs.filter(Boolean).map((r) => [referenceKey(r), r])).values()]
+    .filter((r) => label(r) && !INTERNAL.test(label(r)))
   if (!unique.length) return null
-  return <div className="lm-refs"><div className="lm-h4">References used in this line module</div><ol>{unique.map((r, i) => <li key={referenceKey(r) || i}>{r.vancouver || r.citation || r.title || r.doc_id}{r.doi ? <> · <a href={`https://doi.org/${r.doi}`} target="_blank" rel="noreferrer">doi</a></> : r.url ? <> · <a href={r.url} target="_blank" rel="noreferrer">source</a></> : null}{r.locator ? <span className="code"> · {r.locator}</span> : null}</li>)}</ol></div>
+  return <div className="lm-refs"><div className="lm-h4">References used in this line module</div><ol>{unique.map((r, i) => <li key={referenceKey(r) || i}>{label(r)}{r.doi ? <> · <a href={`https://doi.org/${r.doi}`} target="_blank" rel="noreferrer">doi</a></> : r.url ? <> · <a href={r.url} target="_blank" rel="noreferrer">source</a></> : null}</li>)}</ol></div>
 }
 
 function Collapsible({ title, children, open, onToggle, seen }) {
@@ -716,7 +722,7 @@ function Collapsible({ title, children, open, onToggle, seen }) {
 
 // Completion by viewing: every section opened is the evidence. No self-declared
 // zone, no assessment requirement — opening and reading is what's being recorded.
-function CompletionPanel({ prog, total, signedIn, saving, onToggle }) {
+function CompletionPanel({ prog, total, signedIn, saving, onToggle, unit = 'sections' }) {
   if (!signedIn || !total) return null
   const seen = (prog?.viewed || []).filter((i) => i < total).length
   const allSeen = seen >= total
@@ -724,9 +730,9 @@ function CompletionPanel({ prog, total, signedIn, saving, onToggle }) {
   return (
     <div className={'lm-complete' + (isDone ? ' done' : '')}>
       <div className="lm-complete-b">
-        <div className="lm-complete-t">{isDone ? 'Completed' : allSeen ? 'All sections opened' : 'Keep going'}</div>
+        <div className="lm-complete-t">{isDone ? 'Completed' : allSeen ? (unit === 'pages' ? 'All pages read' : 'All sections opened') : 'Keep going'}</div>
         <div className="lm-complete-s">
-          {seen} of {total} sections opened{!allSeen ? ' — open the rest to finish this module' : ''}
+          {seen} of {total} {unit === 'pages' ? 'pages read' : 'sections opened'}{!allSeen ? (unit === 'pages' ? ' — read on to finish this module' : ' — open the rest to finish this module') : ''}
         </div>
         <div className="lm-complete-bar"><span style={{ width: `${Math.round((seen / total) * 100)}%` }} /></div>
       </div>
@@ -735,7 +741,7 @@ function CompletionPanel({ prog, total, signedIn, saving, onToggle }) {
         className={'lm-donebtn' + (isDone ? ' on' : '')}
         onClick={onToggle}
         disabled={saving || (!allSeen && !isDone)}
-        title={!allSeen && !isDone ? 'Open every section first' : undefined}
+        title={!allSeen && !isDone ? (unit === 'pages' ? 'Read every page first' : 'Open every section first') : undefined}
       >
         <span aria-hidden="true">{isDone ? '✓' : '○'}</span>
         {isDone ? 'Completed' : 'Mark as completed'}
@@ -766,6 +772,30 @@ const PRIMARY_TABS = [
   { id: 'osce', label: 'OSCE', short: 'OSCE', purpose: 'Can I reason, decide and defend a clinical decision?' },
   { id: 'appraisal', label: 'Appraisal', short: 'APPRAISAL', purpose: 'Can I critically evaluate the evidence?' },
 ]
+
+// Phones read reflowed text better than a scaled-down A4 page — Adobe's answer is
+// "Liquid Mode". Same content, two presentations; laptops stay on the document.
+const PHONE_QUERY = '(max-width: 760px)'
+function usePhone() {
+  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHONE_QUERY).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(PHONE_QUERY)
+    const on = () => setM(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return m
+}
+
+function LiquidToggle({ mode, onChange }) {
+  return (
+    <div className="lm-liquid" role="group" aria-label="Reading mode">
+      <button type="button" className={mode === 'text' ? 'on' : ''} onClick={() => onChange('text')}>Text</button>
+      <button type="button" className={mode === 'pages' ? 'on' : ''} onClick={() => onChange('pages')}>Pages</button>
+      <span className="lm-liquid-note">{mode === 'text' ? 'Reflowed for your screen — the same content as the document.' : 'The document, page by page.'}</span>
+    </div>
+  )
+}
 
 // Competencies this line also carries. A quiet strip under Need — orientation,
 // not a seventh learning operation.
@@ -986,6 +1016,8 @@ function AppraisalReport({ a }) {
 export default function LineModule({ line }) {
   const [c, setC] = useState(undefined)
   const [tab, setTab] = useState('theory')
+  const [tview, setTview] = useState(null) // null = automatic: text on phones, pages elsewhere
+  const isPhone = usePhone()
   const [hls, setHls] = useState([])
   const [paper, setPaper] = useState('1')
   const [atype, setAtype] = useState('sba')
@@ -1002,7 +1034,7 @@ export default function LineModule({ line }) {
   const [apprIdx, setApprIdx] = useState(0)
 
   useEffect(() => {
-    let on = true; setC(undefined)
+    let on = true; setC(undefined); setTview(null)
     getLineModule(line.id)
       .then((d) => {
         if (!on) return
@@ -1011,6 +1043,10 @@ export default function LineModule({ line }) {
       .catch(() => on && setC({ empty: true }))
     return () => { on = false }
   }, [line.id])
+
+  useEffect(() => {
+    document.querySelector('.lm-tab.on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }, [tab])
 
   // Viewing evidence lives on the theory node — the thing with sections to open.
   const theoryId = c && !c.empty ? c.theory?.node_id || c.nodes?.find((n) => n.node_type === 'theory_module')?.id : null
@@ -1089,6 +1125,7 @@ export default function LineModule({ line }) {
   // Several older library_resources rows still hold repo-relative authoring paths
   // rather than an uploaded URL; those render as "not attached yet", never a 404.
   const visualRes = (c.resources || []).filter((r) => r.resource_type !== 'manuscript')
+  const theoryMode = tview || (isPhone && hasTheory ? 'text' : 'pages')
   const hasVisuals = visualRes.length > 0
   const hasAssess = (c.sba && c.sba.length) || (c.emqGroups && c.emqGroups.length) || (c.mcq && c.mcq.length)
   const hasOsce = c.osce && c.osce.length
@@ -1180,7 +1217,9 @@ export default function LineModule({ line }) {
         )}
 
         {/* THEORY — one document, one reader, no sub-navigation */}
-        {tab === 'theory' && (manuscriptUrl ? (
+        {tab === 'theory' && (<>
+          {isPhone && hasTheory && manuscriptUrl ? <LiquidToggle mode={theoryMode} onChange={setTview} /> : null}
+          {theoryMode === 'pages' && manuscriptUrl ? (
           <>
             <Suspense fallback={<div className="ph"><div className="ph-s">Opening the document…</div></div>}>
               <PdfReader
@@ -1198,6 +1237,7 @@ export default function LineModule({ line }) {
               signedIn={!!userId}
               saving={savingDone}
               onToggle={toggleDone}
+              unit="pages"
             />
             {hasVisuals ? <VisualResources items={visualRes} /> : null}
           </>
@@ -1224,7 +1264,8 @@ export default function LineModule({ line }) {
             />
             {hasVisuals ? <VisualResources items={visualRes} /> : null}
           </>
-        ) : null)}
+        ) : null}
+        </>)}
 
         {/* EVIDENCE & VANTAGE — interrogate the evidence */}
         {tab === 'evidence' && (hasEvidence ? (

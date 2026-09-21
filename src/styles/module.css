@@ -512,3 +512,23 @@
 .lm-emq-select:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
 .lm-emq-scen.correct .lm-emq-select { border-color: var(--ok); background: var(--ok-weak); color: var(--ok); }
 .lm-emq-scen.wrong .lm-emq-select { border-color: var(--danger); background: var(--danger-weak); color: var(--danger); }
+
+/* ── phones: the tab bar hints that it scrolls sideways ─────────────────── */
+@media (max-width: 760px) {
+  .lm-tabbar {
+    padding-right: 36px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+            mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
+}
+
+/* ── Liquid Mode: Text | Pages on phones ────────────────────────────────── */
+.lm-liquid { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 16px; }
+.lm-liquid button {
+  min-height: 40px; padding: 0 16px; border: 1px solid var(--line-strong); background: var(--surface);
+  font: 600 13.5px var(--font-sans); color: var(--ink-2); cursor: pointer;
+}
+.lm-liquid button:first-child { border-radius: 8px 0 0 8px; }
+.lm-liquid button:nth-child(2) { border-radius: 0 8px 8px 0; margin-left: -11px; }
+.lm-liquid button.on { background: var(--primary); border-color: var(--primary); color: #fff; position: relative; }
+.lm-liquid-note { flex-basis: 100%; font-size: 12.5px; color: var(--ink-3); }

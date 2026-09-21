@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDomainCoverage, getOsceLmsCases, getRegistryStats } from '../lib/api'
-import { CoverageBar, MiniTrace, clickable } from '../components/Primitives'
+import { MiniTrace, clickable } from '../components/Primitives'
 
 function DomainCard({ d, onOpen }) {
-  const pct = Number(d.coverage_pct) || 0
   return (
     <div className="card hoverable domcard" {...clickable(onOpen)}>
       <div className="dc-head">
@@ -15,7 +14,6 @@ function DomainCard({ d, onOpen }) {
       <div className="dc-meta">
         <b>{d.lines}</b> syllabus lines<span className="dc-dot">·</span><b>{d.guidelines}</b> guidelines
       </div>
-      <CoverageBar pct={pct} />
     </div>
   )
 }
@@ -45,7 +43,6 @@ export default function CurriculumBrowser() {
         <h1 className="page-h1">Curriculum browser</h1>
         <p className="page-lede">
           Every domain and line of the EFRM syllabus, each mapped to its MRCOG root and governing guideline.
-          Orientation modules and the Part 2 OSCE library are live now; clinical content is added line by line.
         </p>
         <div className="reg-stats">
           <div className="rs"><b>{domains ? domains.length : '—'}</b><span>domains</span></div>
@@ -73,7 +70,6 @@ export default function CurriculumBrowser() {
               Full case analysis · examiner Q&amp;A
             </span>
           </div>
-          <CoverageBar pct={100} />
         </div>
         {(domains || []).map((d) => (
           <DomainCard key={d.domain_number} d={d} onOpen={() => nav(`/app/domain/${d.domain_number}`)} />
