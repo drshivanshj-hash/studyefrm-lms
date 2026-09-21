@@ -76,8 +76,8 @@ export default function Landing() {
           </div>
 
           <aside className="hero-trace card">
-            <div className="eyebrow" style={{ marginBottom: 14 }}>The three-layer trace</div>
-            <TraceBlock orientation="col" root="Gynaecological problems" line={SAMPLE} guideline={SAMPLE.g} />
+            <div className="eyebrow" style={{ marginBottom: 14 }}>The four-layer trace</div>
+            <TraceBlock orientation="col" root="Gynaecological problems" pact="Core Reproductive Medicine: indication/treatment" line={SAMPLE} guideline={SAMPLE.g} />
             <div className="hero-trace-cap">No competitor shows you this. It is the whole idea.</div>
           </aside>
         </div>
