@@ -61,8 +61,9 @@ export default function Landing() {
             <div className="eyebrow" style={{ color: 'var(--primary)' }}>European Fellowship in Reproductive Medicine</div>
             <h1 className="hero-h1">The EFRM syllabus, fully mapped — and traced to its roots.</h1>
             <p className="hero-sub">
-              Every competency shows where it sits in basic O&amp;G (MRCOG), what it becomes at
-              subspecialty level (ATCRM), and which ESHRE / NICE / ASRM guideline is the authority.
+              Every competency shows where it sits in basic O&amp;G (MRCOG), how the European
+              specialist curriculum frames it (EBCOG PACT), what it becomes at subspecialty level
+              (ATCRM), and which ESHRE / NICE / ASRM guideline is the authority.
             </p>
             <form className="magic" id="access" onSubmit={requestAccess}>
               <input type="email" required placeholder="you@hospital.org"
@@ -144,8 +145,6 @@ export default function Landing() {
                       {d.guidelines.slice(0, 3).map((g) => <span key={g} className="cur-chip code">{g}</span>)}
                     </div>
                   )}
-                  <div className="cur-bar" aria-hidden="true"><span style={{ width: `${d.coverage_pct}%` }} /></div>
-                  <div className="cur-status">Mapped curriculum preview</div>
                 </article>
               ))}
             </div>
