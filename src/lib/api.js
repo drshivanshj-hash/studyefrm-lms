@@ -65,14 +65,6 @@ export async function getCurriculumOverview() {
   })
 }
 
-export async function getDemoOsceCase() {
-  return cached('demo-osce-case', async () => {
-    const { data, error } = await withTimeout(supabase.rpc('public_demo_osce_case'), 'Demo OSCE case')
-    if (error) throw error
-    return Array.isArray(data) ? (data[0] ?? null) : (data ?? null)
-  })
-}
-
 // EACCME credit: 0.5 ECMEC per 30 min === minutes / 60.
 export function ecmec(minutes) {
   if (!minutes) return null

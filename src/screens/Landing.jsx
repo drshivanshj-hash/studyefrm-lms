@@ -112,29 +112,6 @@ export default function Landing() {
 
       </section>
 
-      <section className="wrap osce-preview-sec">
-        <div className="bp-head">
-          <div>
-            <div className="eyebrow">Open access · OSCE sample</div>
-            <h2 className="bp-title">Examiner-viva case preview</h2>
-          </div>
-        </div>
-
-        <div className="mod-grid">
-          <article className="card mod-card osce-preview-card" role="button" tabIndex={0}
-            onClick={() => nav('/demo-osce-case')}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') nav('/demo-osce-case') }}>
-            <div className="eyebrow">Free OSCE case</div>
-            <h3 className="mod-title">Demo OSCE Case</h3>
-            <div className="mod-meta code">EFRM Part 2 · examiner viva · free access</div>
-            <p className="osce-preview-copy">
-              This is one of 27 examiner-viva cases built to EFRM Part 2 specification.
-              Read it the way the examiner will ask it — then access the full library.
-            </p>
-          </article>
-        </div>
-      </section>
-
       <section className="wrap cur-sec">
         <div className="bp-head">
           <div>
@@ -144,7 +121,7 @@ export default function Landing() {
         </div>
 
         {!cur && !curErr && <div className="ph"><div className="ph-s">Loading the curriculum…</div></div>}
-        {curErr && <div className="ph"><div className="ph-s">Curriculum map appears once <code>public_curriculum_overview()</code> is live.</div></div>}
+        {curErr && <div className="ph"><div className="ph-s">The curriculum map could not load. Please try again shortly.</div></div>}
 
         {cur && (
           <>

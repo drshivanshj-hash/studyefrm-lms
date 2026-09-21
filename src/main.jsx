@@ -20,7 +20,6 @@ import CurriculumBrowser from './screens/CurriculumBrowser'
 import DomainDetail from './screens/DomainDetail'
 import LineView from './screens/LineView'
 import OsceLibrary from './screens/OsceLibrary'
-import DemoOsceCase from './screens/DemoOsceCase'
 
 function Spinner() {
   return <div className="wrap authcb"><div className="ph"><div className="ph-s">Loading…</div></div></div>
@@ -51,7 +50,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route element={<App />}>
             <Route index element={<Landing />} />
             <Route path="m/:slug" element={<ModuleReader />} />
-            <Route path="demo-osce-case" element={<DemoOsceCase />} />
+            <Route path="demo-osce-case" element={<Navigate to="/" replace />} />
             <Route path="auth/callback" element={<AuthCallback />} />
             <Route path="app" element={<RequireApproved><CurriculumBrowser /></RequireApproved>} />
             <Route path="app/osce" element={<RequireApproved><OsceLibrary /></RequireApproved>} />
