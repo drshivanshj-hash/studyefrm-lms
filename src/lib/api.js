@@ -434,6 +434,33 @@ export async function deleteNote(userId, noteId) {
   return !error
 }
 
+// ── Flags for review ─────────────────────────────────────────────────────────
+// A candidate's "Flag for review" is a user_notes row whose tab is
+// "flag:<section>". notes_own (user_id = auth.uid() OR is_admin()) already lets
+// the owner read and delete every flag — no schema or policy change.
+export const flagTab = (section) => `flag:${section}`
+
+export async function getOwnerFlags() {
+  const { data, error } = await supabase
+    .from('user_notes').select('id, user_id, line_id, tab, body, created_at')
+    .like('tab', 'flag:%').order('created_at', { ascending: false })
+  if (error) throw error
+  const rows = data ?? []
+  const lineIds = [...new Set(rows.map((r) => r.line_id).filter(Boolean))]
+  const { data: lines } = lineIds.length
+    ? await supabase.from('syllabus_lines').select('id, code, line_text').in('id', lineIds)
+    : { data: [] }
+  const byId = Object.fromEntries((lines || []).map((l) => [l.id, l]))
+  return rows.map((r) => ({ ...r, section: r.tab.slice(5), line: byId[r.line_id] || null }))
+}
+
+// Resolving removes the flag (the notes policy lets the owner delete, not edit).
+export async function resolveFlag(id) {
+  if (!id) return false
+  const { error } = await supabase.from('user_notes').delete().eq('id', id)
+  return !error
+}
+
 // ── Completion by viewing (db: user_node_progress) ──────────────────────────
 // Evidence is "opened and viewed": a section, PDF page or slide counts once the
 // candidate has actually opened it. When every section of a node has been seen,
@@ -441,13 +468,20 @@ export async function deleteNote(userId, noteId) {
 // schema states it is derived, and completion is not a RAG judgement.
 //
 //   state          'unseen' | 'in_progress' | 'completed'
-//   last_position  JSON: {"viewed":[0,2,3],"total":8}   (TEXT column, no migration)
+//   last_position  JSON: {"viewed":[0,2,3],"total":8,"resume":{"sec":"theory","page":12}}
+//                  (TEXT column, no migration). `resume` lives on the theory node and
+//                  is where the line workspace reopens — it follows the candidate
+//                  across devices.
 
 function parsePos(raw) {
   try {
     const v = JSON.parse(raw || '{}')
-    return { viewed: Array.isArray(v.viewed) ? v.viewed : [], total: v.total || 0 }
-  } catch { return { viewed: [], total: 0 } }
+    return {
+      viewed: Array.isArray(v.viewed) ? v.viewed : [],
+      total: v.total || 0,
+      resume: v.resume && typeof v.resume === 'object' ? v.resume : null,
+    }
+  } catch { return { viewed: [], total: 0, resume: null } }
 }
 
 export async function getNodeProgress(userId, nodeId) {
@@ -456,9 +490,35 @@ export async function getNodeProgress(userId, nodeId) {
     .from('user_node_progress').select('state, last_position, updated_at')
     .eq('user_id', userId).eq('node_id', nodeId).maybeSingle()
   if (error) return null
-  if (!data) return { state: 'unseen', viewed: [], total: 0 }
+  if (!data) return { state: 'unseen', viewed: [], total: 0, resume: null }
   const pos = parsePos(data.last_position)
-  return { state: data.state, viewed: pos.viewed, total: pos.total }
+  return { state: data.state, viewed: pos.viewed, total: pos.total, resume: pos.resume }
+}
+
+// Every progress row the candidate has on one line, in one request.
+// Returns { [node_id]: { state, viewed, total, resume } }.
+export async function getLineProgress(userId, nodeIds) {
+  if (!userId || !nodeIds?.length) return {}
+  const { data, error } = await supabase
+    .from('user_node_progress').select('node_id, state, last_position')
+    .eq('user_id', userId).in('node_id', nodeIds)
+  if (error) return {}
+  return Object.fromEntries((data || []).map((r) => [r.node_id, { state: r.state, ...parsePos(r.last_position) }]))
+}
+
+// Where the workspace should reopen (section + PDF page). Stored on the theory
+// node alongside its page-view evidence, which it never overwrites.
+export async function saveResume(userId, nodeId, resume) {
+  if (!userId || !nodeId || !resume) return false
+  const cur = await getNodeProgress(userId, nodeId)
+  const { error } = await supabase.from('user_node_progress').upsert({
+    user_id: userId,
+    node_id: nodeId,
+    state: cur?.state && cur.state !== 'unseen' ? cur.state : 'in_progress',
+    last_position: JSON.stringify({ viewed: cur?.viewed || [], total: cur?.total || 0, resume }),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,node_id' })
+  return !error
 }
 
 // Records that one section/page/slide has been opened. Idempotent per index.
@@ -472,23 +532,24 @@ export async function markSectionViewed(userId, nodeId, index, total) {
     user_id: userId,
     node_id: nodeId,
     state: current?.state === 'completed' ? 'completed' : 'in_progress',
-    last_position: JSON.stringify({ viewed: nextViewed, total }),
+    last_position: JSON.stringify({ viewed: nextViewed, total, resume: current?.resume || null }),
     updated_at: new Date().toISOString(),
   }
   const { error } = await supabase
     .from('user_node_progress').upsert(next, { onConflict: 'user_id,node_id' })
   if (error) return current
-  return { state: next.state, viewed: nextViewed, total }
+  return { state: next.state, viewed: nextViewed, total, resume: current?.resume || null }
 }
 
 export async function setNodeCompleted(userId, nodeId, done, viewed = [], total = 0) {
   if (!userId || !nodeId) return false
+  const cur = await getNodeProgress(userId, nodeId)
   const { error } = await supabase
     .from('user_node_progress').upsert({
       user_id: userId,
       node_id: nodeId,
       state: done ? 'completed' : 'in_progress',
-      last_position: JSON.stringify({ viewed, total }),
+      last_position: JSON.stringify({ viewed, total, resume: cur?.resume || null }),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,node_id' })
   return !error

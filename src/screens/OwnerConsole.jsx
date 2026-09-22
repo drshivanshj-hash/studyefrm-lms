@@ -6,6 +6,8 @@ import {
   getDomainCoverage,
   getOwnerContentQueue,
   getOwnerUsers,
+  getOwnerFlags,
+  resolveFlag,
   updateUserStatus,
 } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -25,6 +27,7 @@ export default function OwnerConsole() {
   const [users, setUsers] = useState([])
   const [coverage, setCoverage] = useState([])
   const [content, setContent] = useState([])
+  const [flags, setFlags] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState('')
@@ -37,6 +40,8 @@ export default function OwnerConsole() {
       setUsers(u)
       setCoverage(c)
       setContent(q)
+      // flags load separately: a failure here must not blank the rest of the console
+      getOwnerFlags().then(setFlags).catch(() => setFlags([]))
     } catch (err) {
       setError(err.message || 'Owner console failed to load.')
     } finally {
@@ -53,6 +58,18 @@ export default function OwnerConsole() {
     approved: acc.approved + Number(d.approved || 0),
     pending: acc.pending + Number(d.pending || 0),
   }), { lines: 0, guidelines: 0, approved: 0, pending: 0 }), [coverage])
+
+  const emailById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.email])), [users])
+  const SECTION_NAME = { theory: 'Theory', evidence: 'Evidence & Vantage', part1: 'Q-bank · Part 1', osce: 'OSCE', appraisal: 'Appraisal' }
+
+  async function resolve(flag) {
+    if (!window.confirm('Resolve this flag? It will be removed from the inbox and from the candidate’s list.')) return
+    setBusy(flag.id)
+    const ok = await resolveFlag(flag.id)
+    setBusy(null)
+    if (ok) setFlags((f) => f.filter((x) => x.id !== flag.id))
+    else setError('Could not resolve that flag.')
+  }
 
   async function approveUser(user) {
     setBusy(user.id)
@@ -103,6 +120,7 @@ export default function OwnerConsole() {
 
       <section className="owner-stats">
         <div className="card owner-stat"><span className="os-num">{pendingUsers.length}</span><span>pending users</span></div>
+        <div className="card owner-stat"><span className="os-num">{flags.length}</span><span>open flags</span></div>
         <div className="card owner-stat"><span className="os-num">{content.length}</span><span>pending content nodes</span></div>
         <div className="card owner-stat"><span className="os-num">{totals.approved}</span><span>approved nodes</span></div>
         <div className="card owner-stat"><span className="os-num">{totals.lines}</span><span>registry lines</span></div>
@@ -122,6 +140,28 @@ export default function OwnerConsole() {
               <StatusPill status={u.status} />
               <button className="btn primary sm" disabled={busy === u.id} onClick={() => approveUser(u)}>
                 {busy === u.id ? 'Approving…' : 'Approve'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="owner-section">
+        <div className="list-head"><span>Flagged for review</span><span className="list-count">{flags.length} open</span></div>
+        <div className="card owner-card">
+          {flags.length === 0 ? (
+            <div className="owner-empty">No open flags from candidates.</div>
+          ) : flags.map((f) => (
+            <div className="owner-row flag" key={f.id}>
+              <div>
+                <div className="owner-title">{f.body}</div>
+                <div className="owner-meta">
+                  {emailById[f.user_id] || 'candidate'} · {f.line?.code ? <Link to={`/app/line/${f.line.code}`}>{f.line.code}</Link> : 'line'}
+                  {' · '}{SECTION_NAME[f.section] || f.section} · {fmtDate(f.created_at)}
+                </div>
+              </div>
+              <button className="btn secondary sm" disabled={busy === f.id} onClick={() => resolve(f)}>
+                {busy === f.id ? 'Resolving…' : 'Resolve'}
               </button>
             </div>
           ))}

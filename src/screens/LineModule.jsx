@@ -5,10 +5,11 @@ import {
   getLineModule, ecmec,
   saveQuizAttempt, getMyQuestionStats, getCohortQuestionStats, percentileBand,
   getMyMarks, toggleMark, getNodeProgress, markSectionViewed, setNodeCompleted,
-  getNotes, addNote, deleteNote,
+  getNotes, addNote, deleteNote, getLineProgress, saveResume,
 } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { TabNotes } from '../components/StudyTools'
+import { KindBadge, TraceBlock } from '../components/Primitives'
+import { SECTIONS, SideNav, NotesDrawer, DoneBar } from '../components/Workspace'
 // Loaded only when a candidate actually opens the document view: keeps pdfjs
 // (~340 KB) out of the bundle every other visitor downloads.
 const PdfReader = lazy(() => import('../components/PdfReader'))
@@ -1015,7 +1016,20 @@ function AppraisalReport({ a }) {
 
 export default function LineModule({ line }) {
   const [c, setC] = useState(undefined)
-  const [tab, setTab] = useState('theory')
+  // ── line workspace: first visit → overview; afterwards → resume where they stopped
+  const [view, setView] = useState(null)        // null = deciding | 'overview' | 'work'
+  const [sec, setSec] = useState('theory')
+  const [resumeSec, setResumeSec] = useState(null)
+  const [resumePage, setResumePage] = useState(1)
+  const [lp, setLp] = useState({})              // this candidate's progress rows on the line
+  const [qStats, setQStats] = useState(null)    // Q-bank history across the whole line
+  const [pinned, setPinned] = useState(false)
+  const [drawer, setDrawer] = useState(false)
+  const [noteCount, setNoteCount] = useState(0)
+  const [toast, setToast] = useState(null)
+  const [doneBusy, setDoneBusy] = useState(false)
+  const pageRef = useRef(1)
+  const resumeTimer = useRef(null)
   const [tview, setTview] = useState(null) // null = automatic: text on phones, pages elsewhere
   const isPhone = usePhone()
   const [hls, setHls] = useState([])
@@ -1045,19 +1059,55 @@ export default function LineModule({ line }) {
   }, [line.id])
 
   useEffect(() => {
-    document.querySelector('.lm-tab.on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
-  }, [tab])
+    document.querySelector('.ws-si.on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }, [sec, view])
 
   // Viewing evidence lives on the theory node — the thing with sections to open.
   const theoryId = c && !c.empty ? c.theory?.node_id || c.nodes?.find((n) => n.node_type === 'theory_module')?.id : null
 
+  const allQIds = c && !c.empty
+    ? [...(c.sba || []), ...(c.mcq || []), ...(c.emqGroups || []).flatMap((g) => g.items || [])].map((q) => q.node_id).filter(Boolean)
+    : []
+
+  // One read of everything the candidate has done on this line decides the
+  // entry point: nothing yet → the overview; anything → straight back to work.
   useEffect(() => {
     let on = true
-    setProg(null)
-    if (!userId || !theoryId) return undefined
-    getNodeProgress(userId, theoryId).then((p) => { if (on) setProg(p) })
+    setProg(null); setLp({}); setQStats(null); setResumeSec(null); setResumePage(1)
+    setSec('theory'); setToast(null); setDrawer(false); setView(null)
+    pageRef.current = 1
+    if (!c) return undefined
+    if (c.empty || !userId) { setView('overview'); return undefined }
+    const nodeIds = (c.nodes || []).map((n) => n.id)
+    Promise.all([getLineProgress(userId, nodeIds), getMyQuestionStats(userId, allQIds)]).then(([p, qs]) => {
+      if (!on) return
+      setLp(p); setQStats(qs)
+      const tRow = theoryId ? p[theoryId] : null
+      if (tRow) setProg(tRow)
+      const r = tRow?.resume
+      const rs = r?.sec && SECTIONS.some((x) => x.id === r.sec) ? r.sec : null
+      if (rs) setResumeSec(rs)
+      if (r?.page > 1) { setResumePage(r.page); pageRef.current = r.page }
+      const started = Object.keys(p).length > 0 || (qs?.attempts || 0) > 0
+      if (!started) { setView('overview'); return }
+      const s2 = rs || 'theory'
+      setSec(s2); setView('work')
+      setToast(SECTIONS.find((x) => x.id === s2).name + (s2 === 'theory' && r?.page > 1 ? `, page ${r.page}` : ''))
+      setTimeout(() => { if (on) setToast(null) }, 2800)
+    })
     return () => { on = false }
-  }, [userId, theoryId])
+  }, [c, userId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Remember where the candidate is (section + PDF page) so the line reopens there.
+  function scheduleResume(nextSec) {
+    if (!userId || !theoryId) return
+    clearTimeout(resumeTimer.current)
+    resumeTimer.current = setTimeout(() => { saveResume(userId, theoryId, { sec: nextSec, page: pageRef.current }) }, 1500)
+  }
+  useEffect(() => {
+    if (view === 'work') scheduleResume(sec)
+    return () => clearTimeout(resumeTimer.current)
+  }, [view, sec]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let on = true
@@ -1101,6 +1151,15 @@ export default function LineModule({ line }) {
     if (next) setProg(next)
   }
 
+  function onPageViewed(i, tot) {
+    pageRef.current = i + 1
+    onSectionOpened(i, tot)
+    scheduleResume('theory')
+  }
+
+  function enter(s2) { setSec(s2); setView('work'); window.scrollTo({ top: 0 }) }
+  function go(s2) { setSec(s2); setDrawer(false); window.scrollTo({ top: 0 }) }
+
   async function toggleDone() {
     if (!userId || !theoryId || savingDone) return
     const next = prog?.state !== 'completed'
@@ -1111,7 +1170,7 @@ export default function LineModule({ line }) {
     if (!ok) setProg((p) => ({ ...p, state: next ? 'in_progress' : 'completed' }))
   }
 
-  if (c === undefined) return <div className="lm"><div className="ph"><div className="ph-s">Loading module…</div></div></div>
+  if (c === undefined || view === null) return <div className="lm"><div className="ph"><div className="ph-s">Loading module…</div></div></div>
 
   const hasTheory = c.theory || (c.sections && c.sections.length)
   const hasEvidence = c.decon || (c.recs && c.recs.length)
@@ -1131,6 +1190,47 @@ export default function LineModule({ line }) {
   const hasOsce = c.osce && c.osce.length
   const hasAppraisal = c.appraisals && c.appraisals.length
   const hasBroader = c.broader && c.broader.length
+
+  const anchors = line.anchors || []
+  const anchor = anchors.find((a) => /ESHRE/i.test(a.body || '')) || anchors[0]
+  const pactRow = (line.frameworks || []).find((f) => f.framework_nodes?.curriculum_frameworks?.code === 'EBCOG.PACT')
+  const pact = pactRow ? (pactRow.framework_nodes.title || pactRow.framework_nodes.code) : null
+
+  const deconId = (c.nodes || []).find((n) => n.node_type === 'guideline')?.id
+  const doneIds = {
+    evidence: deconId ? [deconId] : [],
+    osce: (c.osce || []).map((o) => o.node_id).filter(Boolean),
+    appraisal: (c.appraisals || []).map((a) => a.node_id).filter(Boolean),
+  }
+  const isDone = (k) => doneIds[k].length > 0 && doneIds[k].every((id) => lp[id]?.state === 'completed')
+  async function markDone(k, v) {
+    if (!userId || doneBusy) return
+    setDoneBusy(true)
+    const ok = await Promise.all(doneIds[k].map((id) => setNodeCompleted(userId, id, v)))
+    if (ok.every(Boolean)) {
+      setLp((p) => ({ ...p, ...Object.fromEntries(doneIds[k].map((id) => [id, { ...(p[id] || { viewed: [], total: 0 }), state: v ? 'completed' : 'in_progress' }])) }))
+    }
+    setDoneBusy(false)
+  }
+
+  const tTotal = prog?.total || manuscriptRes?.page_count || (c.sections || []).length || 0
+  const tSeen = (prog?.viewed || []).filter((i) => i < tTotal).length
+  const tPct = tTotal ? Math.round((tSeen / tTotal) * 100) : 0
+  const tOk = prog?.state === 'completed' || tPct >= 90
+  const passMark = Number(c.theory?.pass_mark) || 70
+  const doneState = (k, verb) => {
+    if (!doneIds[k].length) return { pct: 0, ok: false, text: '' }
+    return isDone(k) ? { pct: 100, ok: true, text: verb + ' ✓' } : { pct: 0, ok: false, text: 'Not started' }
+  }
+  const secStates = {
+    theory: { pct: tPct, ok: tOk, text: tOk ? 'Read ✓' : tSeen ? `${tSeen}/${tTotal} ${manuscriptRes ? 'pages' : 'sections'}` : 'Not started' },
+    evidence: doneState('evidence', 'Reviewed'),
+    part1: qStats?.attempts
+      ? { pct: qStats.lastPct || 0, ok: (qStats.bestPct || 0) >= passMark, text: `Last ${qStats.lastPct}% · best ${qStats.bestPct}%` }
+      : { pct: 0, ok: false, text: allQIds.length ? `${allQIds.length} questions` : '' },
+    osce: doneState('osce', 'Done'),
+    appraisal: doneState('appraisal', 'Done'),
+  }
 
   const toggle = (set, setter, i) => { const n = new Set(set); n.has(i) ? n.delete(i) : n.add(i); setter(n) }
   const openSection = (i, total) => { setOpenSubs((s) => new Set([...s, i])); onSectionOpened(i, total) }
@@ -1166,58 +1266,121 @@ export default function LineModule({ line }) {
       getCohortQuestionStats(nodeIds),
     ])
     setMine(m); setCohort(co)
+    if (userId) getMyQuestionStats(userId, allQIds).then((qs) => qs && setQStats(qs))
+  }
+
+  const secMeta = SECTIONS.find((s) => s.id === sec) || SECTIONS[0]
+  const qCount = (c.sba || []).length + (c.mcq || []).length + (c.emqGroups || []).reduce((n, g) => n + (g.items || []).length, 0)
+  const sizes = {
+    theory: manuscriptRes?.page_count ? `${manuscriptRes.page_count}-page document` : (c.sections || []).length ? `${c.sections.length} sections` : '',
+    evidence: (c.recs || []).length ? `${c.recs.length} graded recommendations` : '',
+    part1: qCount ? `${qCount} questions` : '',
+    osce: hasOsce ? `${c.osce.length} examiner viva${c.osce.length === 1 ? '' : 's'}` : '',
+    appraisal: hasAppraisal ? `${c.appraisals.length} paper${c.appraisals.length === 1 ? '' : 's'} to appraise` : '',
+  }
+  const outcomes = Array.isArray(c.theory?.educational_outcomes) ? c.theory.educational_outcomes : []
+  const miniSide = !isPhone && sec === 'theory' && !pinned
+
+  if (view === 'overview') {
+    return (
+      <div className="lm ws-ov fade-up">
+        <div className="lv-head">
+          <div className="lv-codeline"><span className="code lv-code">{line.code}</span><KindBadge kind={line.competency_kind} /></div>
+          <h1 className="lv-text">{line.line_text}</h1>
+        </div>
+        <div className="ws-cta ws-cta-top">
+          <button type="button" className="btn primary" onClick={() => enter(resumeSec || 'theory')}>{resumeSec ? 'Continue →' : 'Start with Theory →'}</button>
+        </div>
+
+        <div className="ws-eye">Where this sits</div>
+        <TraceBlock
+          root={line.root?.name || 'MRCOG foundation'}
+          pact={pact}
+          line={{ code: line.code, kind: line.competency_kind, text: line.line_text }}
+          guideline={anchor ? { src: anchor.body, name: anchor.name } : null}
+          orientation={isPhone ? 'col' : 'row'}
+        />
+        {c.theory && (
+          <div className="lm-meta">
+            <span><b>Est.</b> {c.theory.estimated_minutes} min</span>
+            {ecmec(c.theory.estimated_minutes) ? <span><b>ECMEC</b> {ecmec(c.theory.estimated_minutes)}</span> : null}
+            <span><b>Pass</b> {c.theory.pass_mark}%</span>
+            {anchors.length ? <span><b>Anchors</b> <span className="code">{anchors.map((a) => a.code).join(' · ')}</span></span> : null}
+          </div>
+        )}
+
+        {(c.theory?.needs_assessment || outcomes.length) ? (
+          <>
+            <div className="ws-eye">Why this matters</div>
+            <div className="ws-need">
+              {c.theory?.needs_assessment ? (
+                <div className="card ws-card"><h3>The need</h3><StructuredText value={c.theory.needs_assessment} /></div>
+              ) : null}
+              {outcomes.length ? (
+                <div className="card ws-card">
+                  <h3>After this line you will be able to</h3>
+                  <ul className="ws-outc">{outcomes.map((o, i) => <li key={i}>{typeof o === 'string' ? o : [o.verb, o.statement].filter(Boolean).join(' ')}</li>)}</ul>
+                </div>
+              ) : null}
+            </div>
+          </>
+        ) : null}
+
+        <div className="ws-eye">Your path through this line</div>
+        <div className="ws-path">
+          {SECTIONS.map((s, i) => (
+            <button type="button" key={s.id} className="ws-pstep" onClick={() => enter(s.id)}>
+              <span className="n">{String(i + 1).padStart(2, '0')}</span>
+              <span className="h">{s.name}</span>
+              <span className="p">{s.purpose}</span>
+              {sizes[s.id] ? <span className="sz">{sizes[s.id]}</span> : null}
+            </button>
+          ))}
+        </div>
+
+        <div className="ws-cta">
+          <button type="button" className="btn primary" onClick={() => enter(resumeSec || 'theory')}>{resumeSec ? 'Continue →' : 'Start with Theory →'}</button>
+          <span className="ws-cta-note">Next time you open this line, you’ll go straight back to where you stopped.</span>
+        </div>
+
+        <BroaderStrip items={c.broader} />
+
+        {c.theory && (
+          <div className="lm-gov">
+            <div className="lm-gov-grid">
+              <div><span className="k">Primary line</span> <span className="code">{line.code}</span> ({line.competency_kind})</div>
+              <div><span className="k">Anchors</span> <span className="code">{anchors.map((a) => a.code).join(' · ') || '—'}</span></div>
+            </div>
+            <ModuleReferences content={c} anchors={anchors} />
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
-    <div className="lm">
-      {/* metadata strip */}
-      {c.theory && (
-        <div className="lm-meta">
-          <span><b>Est.</b> {c.theory.estimated_minutes} min</span>
-          {ecmec(c.theory.estimated_minutes) ? <span><b>ECMEC</b> {ecmec(c.theory.estimated_minutes)}</span> : null}
-          <span><b>Pass</b> {c.theory.pass_mark}%</span>
-          {(line.anchors || []).length ? <span><b>Anchors</b> <span className="code">{line.anchors.map((a) => a.code).join(' · ')}</span></span> : null}
-        </div>
-      )}
-
-      <div className="lm-tabbar" role="tablist">
-        {PRIMARY_TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            className={'lm-tab' + (tab === t.id ? ' on' : '')}
-            onClick={() => setTab(t.id)}
-          >
-            <span className="lm-tab-full">{t.label}</span>
-            <span className="lm-tab-short">{t.short}</span>
-          </button>
-        ))}
+    <div className={'lm ws' + (miniSide ? ' side-mini' : '')}>
+      <div className="ws-head">
+        <span className="code ws-code">{line.code}</span>
+        <span className="ws-title">{line.line_text}</span>
+        <button type="button" className="ws-ovbtn" onClick={() => setView('overview')}>Overview</button>
       </div>
 
-      <div className="lm-panel">
-        <div className="lm-purpose">{PRIMARY_TABS.find((t) => t.id === tab)?.purpose}</div>
+      <SideNav current={sec} states={secStates} onGo={go} mini={miniSide} onTogglePin={() => setPinned((p) => !p)} />
 
-        {/* NEED — why this matters, and what you will be able to do */}
-        {tab === 'need' && (
-          <>
-            {c.theory?.needs_assessment ? <StructuredText value={c.theory.needs_assessment} /> : null}
-            {Array.isArray(c.theory?.educational_outcomes) && c.theory.educational_outcomes.length > 0 && (
-              <>
-                <div className="lm-h4">After this module you will be able to</div>
-                <ul className="lm-outcomes">
-                  {c.theory.educational_outcomes.map((o, i) => (
-                    <li key={i}>{typeof o === 'string' ? o : [o.verb, o.statement].filter(Boolean).join(' ')}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <BroaderStrip items={c.broader} />
-          </>
-        )}
+      <main className="ws-main">
+        {toast ? <div className="ws-toast" role="status">Resumed · <b>{toast}</b></div> : null}
+        <div className="ws-mhead">
+          <h2>{secMeta.name}</h2>
+          <span className="ws-q">{secMeta.purpose}</span>
+          {userId ? (
+            <button type="button" className="ws-notesbtn" onClick={() => setDrawer(true)}>
+              Notes{noteCount ? <span className="c">{noteCount}</span> : null}
+            </button>
+          ) : null}
+        </div>
 
-        {/* THEORY — one document, one reader, no sub-navigation */}
-        {tab === 'theory' && (<>
+        {sec === 'theory' && (<>
           {isPhone && hasTheory && manuscriptUrl ? <LiquidToggle mode={theoryMode} onChange={setTview} /> : null}
           {theoryMode === 'pages' && manuscriptUrl ? (
           <>
@@ -1228,7 +1391,8 @@ export default function LineModule({ line }) {
                 highlights={hls}
                 onAddHighlight={addHighlight}
                 onDeleteHighlight={removeHighlight}
-                onPageViewed={(i, tot) => onSectionOpened(i, tot)}
+                onPageViewed={onPageViewed}
+                initialPage={resumePage}
               />
             </Suspense>
             <CompletionPanel
@@ -1244,15 +1408,15 @@ export default function LineModule({ line }) {
         ) : hasTheory ? (
           <>
             <TheoryToc sections={c.sections} openSection={openSection} />
-            {c.sections.map((sec, i) => (
+            {c.sections.map((sct, i) => (
               <Collapsible
-                key={sec.id || i}
-                title={`${i + 1}. ${sec.section_title}`}
+                key={sct.id || i}
+                title={`${i + 1}. ${sct.section_title}`}
                 open={openSubs.has(i)}
                 seen={prog?.viewed?.includes(i)}
                 onToggle={() => { toggle(openSubs, setOpenSubs, i); if (!openSubs.has(i)) onSectionOpened(i, c.sections.length) }}
               >
-                <ClinicalBlocks section={sec} />
+                <ClinicalBlocks section={sct} />
               </Collapsible>
             ))}
             <CompletionPanel
@@ -1267,13 +1431,14 @@ export default function LineModule({ line }) {
         ) : null}
         </>)}
 
-        {/* EVIDENCE & VANTAGE — interrogate the evidence */}
-        {tab === 'evidence' && (hasEvidence ? (
-          <EvidencePanel decon={c.decon} recs={c.recs} openRecs={openRecs} toggleRec={(id) => toggle(openRecs, setOpenRecs, id)} />
+        {sec === 'evidence' && (hasEvidence ? (
+          <>
+            <EvidencePanel decon={c.decon} recs={c.recs} openRecs={openRecs} toggleRec={(id) => toggle(openRecs, setOpenRecs, id)} />
+            {userId && doneIds.evidence.length ? <DoneBar done={isDone('evidence')} verb="reviewed" busy={doneBusy} onToggle={(v) => markDone('evidence', v)} /> : null}
+          </>
         ) : null)}
 
-        {/* PART 1 — the written-paper engine, unchanged */}
-        {tab === 'part1' && (hasAssess ? (
+        {sec === 'part1' && (hasAssess ? (
           <>
             <div className="lm-stabbar">
               <span className={'lm-stab' + (paper === '1' ? ' on' : '')} onClick={() => switchAssessment(() => setPaper('1'))}>Paper 1 · Diagnosis &amp; Physiology</span>
@@ -1302,11 +1467,14 @@ export default function LineModule({ line }) {
           </>
         ) : null)}
 
-        {/* OSCE — the station engine, unchanged */}
-        {tab === 'osce' && (hasOsce ? c.osce.map((st, i) => <OsceStation station={st} key={st.node_id || i} />) : null)}
+        {sec === 'osce' && (hasOsce ? (
+          <>
+            {c.osce.map((st, i) => <OsceStation station={st} key={st.node_id || i} />)}
+            {userId && doneIds.osce.length ? <DoneBar done={isDone('osce')} busy={doneBusy} onToggle={(v) => markDone('osce', v)} /> : null}
+          </>
+        ) : null)}
 
-        {/* APPRAISAL — critical appraisal, unchanged */}
-        {tab === 'appraisal' && (hasAppraisal ? (() => {
+        {sec === 'appraisal' && (hasAppraisal ? (() => {
           const idx = Math.min(apprIdx, c.appraisals.length - 1)
           return (
             <>
@@ -1320,24 +1488,16 @@ export default function LineModule({ line }) {
                 </div>
               )}
               <AppraisalReport key={idx} a={c.appraisals[idx]} />
+              {userId && doneIds.appraisal.length ? <DoneBar done={isDone('appraisal')} busy={doneBusy} onToggle={(v) => markDone('appraisal', v)} /> : null}
             </>
           )
         })() : null)}
 
-        {/* Universal: the same notes section on every tab, scoped to (line, tab). */}
-        <TabNotes lineId={line.id} tab={tab} />
-      </div>
-
-      {/* governance & provenance */}
-      {c.theory && (
-        <div className="lm-gov">
-          <div className="lm-gov-grid">
-            <div><span className="k">Primary line</span> <span className="code">{line.code}</span> ({line.competency_kind})</div>
-            <div><span className="k">Anchors</span> <span className="code">{(line.anchors || []).map((a) => a.code).join(' · ') || '—'}</span></div>
-          </div>
-          <ModuleReferences content={c} anchors={line.anchors || []} />
-        </div>
-      )}
+        {userId ? (
+          <NotesDrawer userId={userId} lineId={line.id} lineCode={line.code} section={secMeta}
+            open={drawer} onClose={() => setDrawer(false)} onCount={setNoteCount} />
+        ) : null}
+      </main>
     </div>
   )
 }

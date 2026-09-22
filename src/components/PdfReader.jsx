@@ -134,7 +134,7 @@ function Thumb({ doc, num, current, onGo }) {
 }
 
 export default function PdfReader({
-  url, title, highlights = [], onAddHighlight, onDeleteHighlight, onPageViewed,
+  url, title, highlights = [], onAddHighlight, onDeleteHighlight, onPageViewed, initialPage = 1,
 }) {
   const [doc, setDoc] = useState(null)
   const [total, setTotal] = useState(0)
@@ -249,6 +249,20 @@ export default function PdfReader({
   useEffect(() => () => { io.current?.disconnect(); io.current = null }, [url])
 
   useEffect(() => { if (doc && total) onPageViewed?.(page - 1, total) }, [doc, page, total]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Resume: once the document and its scale are ready, jump to the saved page.
+  const resumed = useRef(false)
+  useEffect(() => { resumed.current = false }, [url])
+  useEffect(() => {
+    if (resumed.current || !doc || !scale || !total) return
+    resumed.current = true
+    if (initialPage > 1) {
+      const t = Math.min(initialPage, total)
+      setNear(new Set([t - 1, t, t + 1]))
+      requestAnimationFrame(() => scrollRef.current?.querySelector(`[data-page="${t}"]`)?.scrollIntoView({ block: 'start' }))
+      setPage(t)
+    }
+  }, [doc, scale, total, initialPage])
 
   function goto(n) {
     const t = Math.min(Math.max(1, n), total || 1)
