@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getNotes, addNote, deleteNote, flagTab } from '../lib/api'
 
 // The five learning operations of the line workspace, in the order a candidate
@@ -18,8 +19,10 @@ function Ring({ pct = 0, ok = false, ab }) {
     <span className="ws-ring" aria-hidden="true">
       <svg viewBox="0 0 32 32">
         <circle cx="16" cy="16" r={r} fill="none" stroke="var(--line)" strokeWidth="2.5" />
-        <circle cx="16" cy="16" r={r} fill="none" stroke={ok ? 'var(--ok, #2E7D5B)' : 'var(--primary)'} strokeWidth="2.5"
-          strokeLinecap="round" strokeDasharray={`${(c * Math.min(100, pct)) / 100} ${c}`} transform="rotate(-90 16 16)" />
+        {pct > 0 ? (
+          <circle cx="16" cy="16" r={r} fill="none" stroke={ok ? 'var(--ok, #2E7D5B)' : 'var(--primary)'} strokeWidth="2.5"
+            strokeLinecap="round" strokeDasharray={`${(c * Math.min(100, pct)) / 100} ${c}`} transform="rotate(-90 16 16)" />
+        ) : null}
       </svg>
       <span className="ws-ab">{ab}</span>
       {ok ? <span className="ws-tick">✓</span> : null}
@@ -107,7 +110,7 @@ export function NotesDrawer({ userId, lineId, lineCode, section, open, onClose, 
   }
 
   const list = mode === 'mine' ? mine : flags
-  return (
+  return createPortal(
     <>
       {open ? <div className="ws-scrim" onClick={onClose} aria-hidden="true" /> : null}
       <aside className={'ws-drawer' + (open ? ' open' : '')} aria-hidden={!open} aria-label="Notes">
@@ -148,6 +151,7 @@ export function NotesDrawer({ userId, lineId, lineCode, section, open, onClose, 
           </ul>
         </form>
       </aside>
-    </>
+    </>,
+    document.body,
   )
 }
