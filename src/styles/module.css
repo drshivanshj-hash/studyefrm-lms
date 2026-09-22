@@ -538,7 +538,7 @@
       Narrow tables now wrap to fit; only genuinely wide ones still scroll. ── */
 @media (max-width: 760px) {
   .lm-rich-table { min-width: 0; }
-  .lm-rich-table th, .lm-rich-table td { overflow-wrap: anywhere; }
+  .lm-rich-table th, .lm-rich-table td { overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; }
   .lm-markdown table { display: block; max-width: 100%; overflow-x: auto; }
-  .lm-markdown th, .lm-markdown td { overflow-wrap: anywhere; }
+  .lm-markdown th, .lm-markdown td { overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; }
 }
