@@ -32,7 +32,7 @@ export default function Landing() {
 
   return (
     <div className="fade-up">
-      {session && (
+      {session && profile && (
         <div className="signedin-bar">
           <div className="sb-inner">
             <span>Signed in as <b>{profile?.email}</b>{profile && profile.status !== 'approved' ? ' · access pending approval' : ''}.</span>
@@ -53,7 +53,7 @@ export default function Landing() {
             </p>
             {session ? (
               <Link className="btn primary" to="/app">
-                {profile?.status === 'approved' ? 'Open your curriculum →' : 'View your access →'}
+                {!profile ? 'Continue →' : profile.status === 'approved' ? 'Open your curriculum →' : 'View your access →'}
               </Link>
             ) : <SignInForm />}
           </div>

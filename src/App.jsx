@@ -24,7 +24,7 @@ export default function App() {
             <span className="who">{profile?.email}</span>
             {isAdmin && <Link className="btn secondary sm tb-wide" to="/owner">Owner</Link>}
             {isApproved && <Link className="btn secondary sm tb-wide" to="/app/osce">OSCE cases</Link>}
-            <Link className="btn primary sm" to="/app">{isApproved ? 'My curriculum' : 'My access'}</Link>
+            <Link className="btn primary sm" to="/app">{profile && !isApproved ? 'My access' : 'My curriculum'}</Link>
             <button className="linkbtn tb-wide" onClick={handleSignOut}>Sign out</button>
             {/* phones: the secondary links fold into one menu so nothing is pushed off-screen */}
             <button className="tb-menu" type="button" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
