@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getLineByCode } from '../lib/api'
+import { getLineBundle } from '../lib/api'
 import LineModule from './LineModule'
 
 export default function LineView() {
   const { code } = useParams()
   const [line, setLine] = useState(undefined) // undefined=loading, null=not found
+  const [module, setModule] = useState(null)
   const [err, setErr] = useState(null)
 
   useEffect(() => {
     let on = true
-    setLine(undefined); setErr(null)
-    getLineByCode(code).then((l) => on && setLine(l)).catch((e) => on && setErr(e.message))
+    setLine(undefined); setModule(null); setErr(null)
+    getLineBundle(code)
+      .then(({ line: l, module: m }) => { if (on) { setModule(m); setLine(l) } })
+      .catch((e) => on && setErr(e.message))
     return () => { on = false }
   }, [code])
 
@@ -27,7 +30,7 @@ export default function LineView() {
         <span className="code" style={{ fontSize: 12 }}>{line.code}</span>
       </div>
 
-      <LineModule line={line} />
+      <LineModule line={line} preloaded={module} />
     </div>
   )
 }

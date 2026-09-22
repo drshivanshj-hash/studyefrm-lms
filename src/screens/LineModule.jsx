@@ -1014,7 +1014,7 @@ function AppraisalReport({ a }) {
   )
 }
 
-export default function LineModule({ line }) {
+export default function LineModule({ line, preloaded = null }) {
   const [c, setC] = useState(undefined)
   // ── line workspace: first visit → overview; afterwards → resume where they stopped
   const [view, setView] = useState(null)        // null = deciding | 'overview' | 'work'
@@ -1049,6 +1049,7 @@ export default function LineModule({ line }) {
 
   useEffect(() => {
     let on = true; setC(undefined); setTview(null)
+    if (preloaded) { setC(preloaded); return () => { on = false } }
     getLineModule(line.id)
       .then((d) => {
         if (!on) return

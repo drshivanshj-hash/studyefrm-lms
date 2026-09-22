@@ -191,6 +191,29 @@ async function signManuscripts(resources) {
   }
 }
 
+// The whole line page — line, trace, frameworks and module — in ONE request
+// (line_bundle RPC, SECURITY INVOKER so RLS applies exactly as before). If the
+// function is unavailable the page falls back to the per-table requests.
+export async function getLineBundle(code) {
+  const { data, error } = await supabase.rpc('line_bundle', { p_code: code })
+  if (error) {
+    const line = await getLineByCode(code)
+    return { line, module: line ? await getLineModule(line.id) : null }
+  }
+  if (!data || !data.line) return { line: null, module: null }
+  const line = shapeLine(data.line)
+  line.domain = data.line.domains || null
+  line.frameworks = data.line.frameworks || []
+  line.nodes = data.nodes || []
+  const module = await shapeModule({
+    nodes: data.nodes, theory: data.theory, sections: data.sections, resources: data.resources,
+    questions: data.questions, emqGroups: data.emq_groups, osce: data.osce, decon: data.decon, recs: data.recs,
+    appraisals: data.appraisals, evidenceRows: data.evidence, secondaryRows: data.secondary, linkRows: data.links,
+    linkedNodes: data.linked_nodes, secondaryNodes: data.secondary_nodes, linkedLines: data.linked_lines,
+  })
+  return { line, module }
+}
+
 // Slice 4 — the gated clinical module for a line: pull every approved content node
 // addressed to the line + its payload, normalised for the v4 tabbed reader.
 // Empty (Phase 1A) → { empty:true }; the reader then shows in-production stubs.
@@ -208,9 +231,6 @@ export async function getLineModule(lineId) {
   const resourceIds = nodes.filter((n) => n.node_type === 'library_resource').map((n) => n.id)
   const osceIds = nodes.filter((n) => n.node_type === 'osce_station').map((n) => n.id)
   const apprIds = nodes.filter((n) => n.node_type === 'abstract_appraisal').map((n) => n.id)
-  const nodeById = Object.fromEntries(nodes.map((n) => [n.id, n]))
-  const slugById = Object.fromEntries(nodes.map((n) => [n.id, n.slug]))
-
   const [theory, sections, resources, questions, emqGroups, osce, decon, recs, appraisals, evidenceRows, secondaryRows, linkRows] = await Promise.all([
     theoryNode ? supabase.from('theory_modules').select('*').eq('node_id', theoryNode.id).maybeSingle().then((r) => r.data) : null,
     theoryNode ? supabase.from('theory_sections').select('*').eq('module_node', theoryNode.id).order('sort_order').then((r) => r.data || []) : [],
@@ -225,16 +245,6 @@ export async function getLineModule(lineId) {
     theoryNode ? supabase.from('node_syllabus_lines').select('role, lens, link_type, sort_order, syllabus_lines ( id, code, line_text, competency_kind )').eq('node_id', theoryNode.id).eq('role', 'secondary').order('sort_order').then((r) => r.data || []) : [],
     theoryNode ? supabase.from('content_links').select('to_node, link_type').eq('from_node', theoryNode.id).in('link_type', ['related', 'see_also', 'applied_in', 'explains']).then((r) => r.data || []) : [],
   ])
-  // MCQ (5 true/false statements) must be split out explicitly — it would
-  // otherwise fall into the SBA bucket, which renders single-choice options.
-  const withKey = (q) => ({ ...q, key: slugById[q.node_id] || q.node_id })
-  const sba = (questions || []).filter((q) => q.type !== 'EMQ_item' && q.type !== 'MCQ').map(withKey)
-  const mcq = (questions || []).filter((q) => q.type === 'MCQ').map(withKey)
-  const emqItems = (questions || []).filter((q) => q.type === 'EMQ_item').map((q) => ({ ...q, key: slugById[q.node_id] || q.node_id }))
-  const emqGroupsShaped = (emqGroups || []).map((g) => {
-    const items = emqItems.filter((it) => it.emq_group_node === g.node_id)
-    return { ...g, items, paper: items[0]?.paper || '1' }
-  })
   const linkedIds = [...new Set((linkRows || []).map((r) => r.to_node).filter(Boolean))]
   const secondaryLineIds = [...new Set((secondaryRows || []).map((r) => r.syllabus_lines?.id).filter(Boolean))]
   const { data: linkedNodes } = linkedIds.length
@@ -247,6 +257,27 @@ export async function getLineModule(lineId) {
   const { data: linkedLines } = linkedLineIds.length
     ? await supabase.from('syllabus_lines').select('id, code, line_text, competency_kind').in('id', linkedLineIds)
     : { data: [] }
+  return shapeModule({ nodes, theory, sections, resources, questions, emqGroups, osce, decon, recs, appraisals, evidenceRows, secondaryRows, linkRows, linkedNodes, secondaryNodes, linkedLines })
+}
+
+// Rows → the module shape the line page consumes. Shared by the one-request
+// bundle (line_bundle RPC) and the per-table fallback, so both render identically.
+async function shapeModule({ nodes, theory, sections, resources, questions, emqGroups, osce, decon, recs, appraisals, evidenceRows, secondaryRows, linkRows, linkedNodes, secondaryNodes, linkedLines }) {
+  if (!nodes || !nodes.length) {
+    return { empty: true, theory: null, sections: [], resources: [], sba: [], mcq: [], emqGroups: [], osce: [], decon: null, recs: [], appraisals: [], evidenceDocuments: [], broader: [] }
+  }
+  const nodeById = Object.fromEntries(nodes.map((n) => [n.id, n]))
+  const slugById = Object.fromEntries(nodes.map((n) => [n.id, n.slug]))
+  // MCQ (5 true/false statements) must be split out explicitly — it would
+  // otherwise fall into the SBA bucket, which renders single-choice options.
+  const withKey = (q) => ({ ...q, key: slugById[q.node_id] || q.node_id })
+  const sba = (questions || []).filter((q) => q.type !== 'EMQ_item' && q.type !== 'MCQ').map(withKey)
+  const mcq = (questions || []).filter((q) => q.type === 'MCQ').map(withKey)
+  const emqItems = (questions || []).filter((q) => q.type === 'EMQ_item').map((q) => ({ ...q, key: slugById[q.node_id] || q.node_id }))
+  const emqGroupsShaped = (emqGroups || []).map((g) => {
+    const items = emqItems.filter((it) => it.emq_group_node === g.node_id)
+    return { ...g, items, paper: items[0]?.paper || '1' }
+  })
   const lineById = Object.fromEntries((linkedLines || []).map((l) => [l.id, l]))
   const nodeByLinkedId = Object.fromEntries((linkedNodes || []).map((n) => [n.id, n]))
   const broader = []
