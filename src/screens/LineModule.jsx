@@ -5,7 +5,7 @@ import {
   getLineModule, ecmec,
   saveQuizAttempt, getMyQuestionStats, getCohortQuestionStats, percentileBand,
   getMyMarks, toggleMark, getNodeProgress, markSectionViewed, setNodeCompleted,
-  getNotes, addNote, deleteNote, getLineProgress, saveResume,
+  getNotes, addNote, deleteNote, getLineProgress, saveResume, signManuscripts, statsFromAttempts,
 } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { KindBadge, TraceBlock } from '../components/Primitives'
@@ -1028,6 +1028,7 @@ export default function LineModule({ line, preloaded = null }) {
   const [noteCount, setNoteCount] = useState(0)
   const [toast, setToast] = useState(null)
   const [doneBusy, setDoneBusy] = useState(false)
+  const [, setSignTick] = useState(0)          // re-render once the PDF link is signed
   const pageRef = useRef(1)
   const resumeTimer = useRef(null)
   const [tview, setTview] = useState(null) // null = automatic: text on phones, pages elsewhere
@@ -1080,7 +1081,11 @@ export default function LineModule({ line, preloaded = null }) {
     if (!c) return undefined
     if (c.empty || !userId) { setView('overview'); return undefined }
     const nodeIds = (c.nodes || []).map((n) => n.id)
-    Promise.all([getLineProgress(userId, nodeIds), getMyQuestionStats(userId, allQIds)]).then(([p, qs]) => {
+    // the one-request bundle already carries this candidate's progress + attempts
+    const loaded = c.progress
+      ? Promise.resolve([c.progress, statsFromAttempts(c.attempts || [])])
+      : Promise.all([getLineProgress(userId, nodeIds), getMyQuestionStats(userId, allQIds)])
+    loaded.then(([p, qs]) => {
       if (!on) return
       setLp(p); setQStats(qs)
       const tRow = theoryId ? p[theoryId] : null
@@ -1098,6 +1103,17 @@ export default function LineModule({ line, preloaded = null }) {
     })
     return () => { on = false }
   }, [c, userId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The bundle arrives unsigned so the page can paint at once; the private PDF
+  // link is signed in the background and the reader opens when it lands.
+  useEffect(() => {
+    if (!c || c.empty) return undefined
+    const pending = (c.resources || []).some((r) => r.resource_type === 'manuscript' && r.storage_url && !r.signed_url && !/^(https?:)?\/\//i.test(r.storage_url))
+    if (!pending) return undefined
+    let on = true
+    signManuscripts(c.resources).then(() => { if (on) setSignTick((t) => t + 1) })
+    return () => { on = false }
+  }, [c])
 
   // Remember where the candidate is (section + PDF page) so the line reopens there.
   function scheduleResume(nextSec) {
@@ -1382,8 +1398,10 @@ export default function LineModule({ line, preloaded = null }) {
         </div>
 
         {sec === 'theory' && (<>
-          {isPhone && hasTheory && manuscriptUrl ? <LiquidToggle mode={theoryMode} onChange={setTview} /> : null}
-          {theoryMode === 'pages' && manuscriptUrl ? (
+          {isPhone && hasTheory && manuscriptRes ? <LiquidToggle mode={theoryMode} onChange={setTview} /> : null}
+          {theoryMode === 'pages' && manuscriptRes && !manuscriptUrl ? (
+            <div className="ph"><div className="ph-s">Opening the document…</div></div>
+          ) : theoryMode === 'pages' && manuscriptUrl ? (
           <>
             <Suspense fallback={<div className="ph"><div className="ph-s">Opening the document…</div></div>}>
               <PdfReader

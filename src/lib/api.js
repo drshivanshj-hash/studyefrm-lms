@@ -176,7 +176,7 @@ function shapeLine(row) {
 const MANUSCRIPT_BUCKET = 'manuscripts'
 const SIGNED_URL_TTL_S = 60 * 60 * 8   // a full reading session, not an hour
 
-async function signManuscripts(resources) {
+export async function signManuscripts(resources) {
   const pending = resources.filter((r) => (
     r.resource_type === 'manuscript' && r.storage_url && !/^(https?:)?\/\//i.test(r.storage_url)
   ))
@@ -210,7 +210,10 @@ export async function getLineBundle(code) {
     questions: data.questions, emqGroups: data.emq_groups, osce: data.osce, decon: data.decon, recs: data.recs,
     appraisals: data.appraisals, evidenceRows: data.evidence, secondaryRows: data.secondary, linkRows: data.links,
     linkedNodes: data.linked_nodes, secondaryNodes: data.secondary_nodes, linkedLines: data.linked_lines,
-  })
+  }, { sign: false })
+  // the candidate's own progress + question history came in the same request
+  module.progress = Object.fromEntries((data.progress || []).map((r) => [r.node_id, { state: r.state, ...parsePos(r.last_position) }]))
+  module.attempts = data.attempts || []
   return { line, module }
 }
 
@@ -262,7 +265,7 @@ export async function getLineModule(lineId) {
 
 // Rows → the module shape the line page consumes. Shared by the one-request
 // bundle (line_bundle RPC) and the per-table fallback, so both render identically.
-async function shapeModule({ nodes, theory, sections, resources, questions, emqGroups, osce, decon, recs, appraisals, evidenceRows, secondaryRows, linkRows, linkedNodes, secondaryNodes, linkedLines }) {
+async function shapeModule({ nodes, theory, sections, resources, questions, emqGroups, osce, decon, recs, appraisals, evidenceRows, secondaryRows, linkRows, linkedNodes, secondaryNodes, linkedLines }, { sign = true } = {}) {
   if (!nodes || !nodes.length) {
     return { empty: true, theory: null, sections: [], resources: [], sba: [], mcq: [], emqGroups: [], osce: [], decon: null, recs: [], appraisals: [], evidenceDocuments: [], broader: [] }
   }
@@ -299,7 +302,7 @@ async function shapeModule({ nodes, theory, sections, resources, questions, emqG
     return map
   }, new Map()).values()]
   const shapedResources = (resources || []).map((r) => ({ ...r, node: nodeById[r.node_id] || null }))
-  await signManuscripts(shapedResources)
+  if (sign) await signManuscripts(shapedResources)
   return {
     empty: false, nodes, theory, sections,
     resources: shapedResources,
@@ -344,8 +347,12 @@ export async function getMyQuestionStats(userId, nodeIds) {
     .in('node_id', nodeIds)
     .order('attempted_at', { ascending: false })
   if (error) return null
-  const rows = data ?? []
-  if (!rows.length) return { attempts: 0, sessions: [], bestPct: null, lastPct: null }
+  return statsFromAttempts(data ?? [])
+}
+
+// Attempt rows (newest first) → last/best score per sitting.
+export function statsFromAttempts(rows) {
+  if (!rows?.length) return { attempts: 0, sessions: [], bestPct: null, lastPct: null }
   // group rows into sessions by attempt timestamp bucket (same submit ≈ same second)
   const buckets = new Map()
   rows.forEach((r) => {
