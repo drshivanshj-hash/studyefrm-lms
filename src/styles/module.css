@@ -539,7 +539,6 @@
 @media (max-width: 760px) {
   .lm-rich-table { min-width: 0; }
   .lm-rich-table th, .lm-rich-table td { overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; }
-  .lm-markdown table { display: block; max-width: 100%; overflow-x: auto; }
   .lm-markdown th, .lm-markdown td { overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; }
 }
 
@@ -657,4 +656,12 @@
   .ws-q { flex-basis: 100%; order: 3; }
   .ws-drawer { top: auto; left: 0; right: 0; width: auto; height: 78vh; border-left: none; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; transform: translateY(105%); }
   .ws-drawer.open { transform: none; }
+}
+
+/* ── phones: every table in a line wraps to the screen, as Theory's do
+      (evidence comparisons, mark schemes, appraisal stats, markdown tables) ── */
+@media (max-width: 760px) {
+  .lm table { width: 100%; min-width: 0; }
+  .lm th, .lm td { overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; word-break: normal; white-space: normal; }
+  .lm .lm-table-wrap { overflow-x: visible; }
 }
