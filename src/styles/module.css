@@ -649,6 +649,7 @@
   .ws-side, .ws-side.mini { width: auto; position: sticky; top: 60px; z-index: 5; flex-direction: row; gap: 2px; padding: 6px 6px; border-right: none; border-bottom: 1px solid var(--line); border-radius: 0; max-height: none; overflow-x: auto; scrollbar-width: none; }
   .ws-side::-webkit-scrollbar { display: none; }
   .ws-side .ws-side-h, .ws-side .ws-side-foot, .ws-side .ws-si-tx { display: none; }
+  .ws-side .ws-si { width: auto; }
   .ws-side .ws-si { flex: 1 0 auto; flex-direction: column; gap: 3px; padding: 5px 8px; min-width: 64px; justify-content: center; }
   .ws-side .ws-si-short { display: block; font-size: 9.5px; font-weight: 600; letter-spacing: .04em; color: var(--ink-3); }
   .ws-side .ws-si.on .ws-si-short { color: var(--primary); }
