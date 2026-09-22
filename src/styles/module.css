@@ -532,3 +532,13 @@
 .lm-liquid button:nth-child(2) { border-radius: 0 8px 8px 0; margin-left: -11px; }
 .lm-liquid button.on { background: var(--primary); border-color: var(--primary); color: #fff; position: relative; }
 .lm-liquid-note { flex-basis: 100%; font-size: 12.5px; color: var(--ink-3); }
+
+/* ── phones: tables fit the screen. The 520px desktop minimum made even a
+      two-column table scroll sideways with no cue, so it read as cut off.
+      Narrow tables now wrap to fit; only genuinely wide ones still scroll. ── */
+@media (max-width: 760px) {
+  .lm-rich-table { min-width: 0; }
+  .lm-rich-table th, .lm-rich-table td { overflow-wrap: anywhere; }
+  .lm-markdown table { display: block; max-width: 100%; overflow-x: auto; }
+  .lm-markdown th, .lm-markdown td { overflow-wrap: anywhere; }
+}
