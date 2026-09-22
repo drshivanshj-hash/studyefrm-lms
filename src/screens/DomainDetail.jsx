@@ -15,7 +15,7 @@ function LineRow({ line, onOpen, phase }) {
       <span className="lr-code code">{line.code}</span>
       <KindBadge kind={line.competency_kind} compact />
       <span className="lr-text">{line.line_text}</span>
-      <span className="lr-g"><GuidelineChip g={a ? { src: a.body, name: a.name } : null} /></span>
+      {a ? <span className="lr-g"><GuidelineChip g={{ src: a.body, name: a.name }} /></span> : null}
       <span className="lr-arr">›</span>
     </div>
   )
