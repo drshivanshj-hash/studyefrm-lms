@@ -756,7 +756,7 @@ function TheoryToc({ sections, openSection }) {  // openSection(i, total)
     <div className="lm-toc">
       {sections.map((s, i) => (
         <button key={s.id || i} onClick={() => openSection(i, sections.length)}>
-          {s.section_number ? `${s.section_number} ` : ''}{String(s.section_title || '').replace(/\s+—\s+.*/, '')}
+          {`${i + 1}. `}{String(s.section_title || '').replace(/\s+—\s+.*/, '')}
         </button>
       ))}
     </div>
@@ -1247,7 +1247,7 @@ export default function LineModule({ line }) {
             {c.sections.map((sec, i) => (
               <Collapsible
                 key={sec.id || i}
-                title={(sec.section_number ? sec.section_number + '. ' : '') + sec.section_title}
+                title={`${i + 1}. ${sec.section_title}`}
                 open={openSubs.has(i)}
                 seen={prog?.viewed?.includes(i)}
                 onToggle={() => { toggle(openSubs, setOpenSubs, i); if (!openSubs.has(i)) onSectionOpened(i, c.sections.length) }}

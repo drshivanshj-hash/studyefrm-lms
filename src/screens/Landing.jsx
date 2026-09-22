@@ -51,7 +51,11 @@ export default function Landing() {
               specialist curriculum frames it (EBCOG PACT), what it becomes at subspecialty level
               (ATCRM), and which ESHRE / NICE / ASRM guideline is the authority.
             </p>
-            <SignInForm />
+            {session ? (
+              <Link className="btn primary" to="/app">
+                {profile?.status === 'approved' ? 'Open your curriculum →' : 'View your access →'}
+              </Link>
+            ) : <SignInForm />}
           </div>
 
           <aside className="hero-trace card">
