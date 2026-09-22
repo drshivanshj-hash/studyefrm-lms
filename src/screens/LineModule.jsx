@@ -1223,7 +1223,7 @@ export default function LineModule({ line }) {
     return isDone(k) ? { pct: 100, ok: true, text: verb + ' ✓' } : { pct: 0, ok: false, text: 'Not started' }
   }
   const secStates = {
-    theory: { pct: tPct, ok: tOk, text: tOk ? 'Read ✓' : tSeen ? `${tSeen}/${tTotal} ${manuscriptRes ? 'pages' : 'sections'}` : 'Not started' },
+    theory: { pct: tOk ? 100 : tPct, ok: tOk, text: tOk ? 'Read ✓' : tSeen ? `${tSeen}/${tTotal} ${manuscriptRes ? 'pages' : 'sections'}` : 'Not started' },
     evidence: doneState('evidence', 'Reviewed'),
     part1: qStats?.attempts
       ? { pct: qStats.lastPct || 0, ok: (qStats.bestPct || 0) >= passMark, text: `Last ${qStats.lastPct}% · best ${qStats.bestPct}%` }
