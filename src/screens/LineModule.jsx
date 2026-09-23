@@ -798,17 +798,25 @@ function LiquidToggle({ mode, onChange }) {
   )
 }
 
-// Competencies this line also carries. A quiet strip under Need — orientation,
-// not a seventh learning operation.
+// How a related line connects to this one — the wording used in the build files.
+const LINK_LABEL = { explains: 'Explains', applied_in: 'Applied in', related: 'Related', see_also: 'See also' }
+
+// Competencies this line also carries, with the lens each one is studied through
+// — the "also studied in (stars)" of the build files.
 function BroaderStrip({ items }) {
   if (!items?.length) return null
   return (
     <div className="lm-broader-strip">
-      <div className="lm-bs-k">Also covered through this line</div>
+      <div className="lm-bs-k">Also studied in</div>
       <div className="lm-bs-list">
         {items.map((b, i) => (
           <Link className="lm-bs-i" key={b.code || i} to={`/app/line/${b.code}`}>
-            <span className="code">{b.code}</span><span>{b.line_text || b.title}</span>
+            <span className="lm-bs-top">
+              <span className="code">{b.code}</span>
+              <span className="lm-bs-t">{b.line_text || b.title}</span>
+              {LINK_LABEL[b.link_type] ? <span className="lm-bs-rel">{LINK_LABEL[b.link_type]}</span> : null}
+            </span>
+            {b.lens ? <span className="lm-bs-lens">{b.lens}</span> : null}
           </Link>
         ))}
       </div>
@@ -1212,6 +1220,7 @@ export default function LineModule({ line, preloaded = null }) {
   const anchor = anchors.find((a) => /ESHRE/i.test(a.body || '')) || anchors[0]
   const pactRow = (line.frameworks || []).find((f) => f.framework_nodes?.curriculum_frameworks?.code === 'EBCOG.PACT')
   const pact = pactRow ? (pactRow.framework_nodes.title || pactRow.framework_nodes.code) : null
+  const traceNotes = { root: line.root?.note || null, pact: pactRow?.note || null, guideline: anchor?.note || null }
 
   const deconId = (c.nodes || []).find((n) => n.node_type === 'guideline')?.id
   const doneIds = {
@@ -1316,6 +1325,7 @@ export default function LineModule({ line, preloaded = null }) {
           line={{ code: line.code, kind: line.competency_kind, text: line.line_text }}
           guideline={anchor ? { src: anchor.body, name: anchor.name } : null}
           orientation={isPhone ? 'col' : 'row'}
+          notes={traceNotes}
         />
         {c.theory && (
           <div className="lm-meta">

@@ -665,3 +665,13 @@
   .lm th, .lm td { overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; word-break: normal; white-space: normal; }
   .lm .lm-table-wrap { overflow-x: visible; }
 }
+
+/* ── the basis of a trace layer (syllabus_trace.note / line_framework_map.note) ── */
+.tnote { margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--line); font-size: 11.5px; line-height: 1.5; color: var(--ink-3); }
+
+/* ── "Also studied in": the lens and how the line connects ───────────────── */
+.lm-bs-i { flex-direction: column; align-items: flex-start; gap: 5px; }
+.lm-bs-top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; width: 100%; }
+.lm-bs-t { flex: 1; min-width: 0; }
+.lm-bs-rel { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--authority); background: var(--authority-weak); border-radius: 5px; padding: 2px 7px; flex: none; }
+.lm-bs-lens { font-family: var(--font-serif); font-style: italic; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; }

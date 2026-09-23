@@ -156,10 +156,15 @@ export async function getLineByCode(code) {
 
 function shapeLine(row) {
   const edges = row.syllabus_trace || []
-  const root = edges.find((e) => e.edge_type === 'root' && e.knowledge_areas)?.knowledge_areas || null
+  // The basis of a layer lives on its edge (syllabus_trace.note). A line can carry
+  // several root edges; if the displayed one has no note, fall back to the first
+  // root edge that does, so the reasoning is not lost.
+  const rootEdge = edges.find((e) => e.edge_type === 'root' && e.knowledge_areas) || null
+  const rootNote = rootEdge?.note || edges.find((e) => e.edge_type === 'root' && e.note)?.note || null
+  const root = rootEdge ? { ...rootEdge.knowledge_areas, note: rootNote } : null
   // dedup by code: the live DB can carry duplicate anchored_in edges (a line may legitimately have >1 distinct anchor)
   const anchors = [...new Map(
-    edges.filter((e) => e.edge_type === 'anchored_in' && e.guideline_anchors).map((e) => [e.guideline_anchors.code, e.guideline_anchors])
+    edges.filter((e) => e.edge_type === 'anchored_in' && e.guideline_anchors).map((e) => [e.guideline_anchors.code, { ...e.guideline_anchors, note: e.note || null }])
   ).values()]
   return {
     id: row.id, code: row.code, line_text: row.line_text,

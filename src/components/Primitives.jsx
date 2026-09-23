@@ -51,7 +51,8 @@ export function CoverageBar({ pct = 0 }) {
 /* The signature knowledge trace. 3-layer by default (MRCOG root → ATCRM/EFRM →
    guideline); pass `pact` to light up the EBCOG-PACT 4th card when that mapping
    exists. orientation: 'row' (desktop) | 'col' (stacked). */
-export function TraceBlock({ root, pact, line, guideline, orientation = 'row' }) {
+export function TraceBlock({ root, pact, line, guideline, orientation = 'row', notes = {} }) {
+  const basis = (t) => (t ? <div className="tnote">{t}</div> : null)
   const conn = <div className="tr-conn"><Arrow /></div>
   return (
     <div className={'trace ' + orientation}>
@@ -59,6 +60,7 @@ export function TraceBlock({ root, pact, line, guideline, orientation = 'row' })
         <div className="tlabel">MRCOG Root</div>
         <div className="tname">{root}</div>
         <div className="tsub">Foundation</div>
+        {basis(notes.root)}
       </div>
       {conn}
       {pact ? (
@@ -67,6 +69,7 @@ export function TraceBlock({ root, pact, line, guideline, orientation = 'row' })
             <div className="tlabel">EBCOG · PACT</div>
             <div className="tname">{pact}</div>
             <div className="tsub">Specialist</div>
+            {basis(notes.pact)}
           </div>
           {conn}
         </>
@@ -83,6 +86,7 @@ export function TraceBlock({ root, pact, line, guideline, orientation = 'row' })
             <div className="tlabel">Guideline</div>
             <div className="tname">{guideline.src + ' ' + guideline.name}</div>
             <div className="tsub">Authority ↗</div>
+            {basis(notes.guideline)}
           </div>
         </>
       ) : null}
