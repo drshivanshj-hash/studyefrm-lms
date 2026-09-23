@@ -1327,14 +1327,14 @@ export default function LineModule({ line, preloaded = null }) {
           orientation={isPhone ? 'col' : 'row'}
           notes={traceNotes}
         />
-        {c.theory && (
+        {c.theory && (c.theory.estimated_minutes || c.theory.pass_mark || anchors.length) ? (
           <div className="lm-meta">
-            <span><b>Est.</b> {c.theory.estimated_minutes} min</span>
+            {c.theory.estimated_minutes ? <span><b>Est.</b> {c.theory.estimated_minutes} min</span> : null}
             {ecmec(c.theory.estimated_minutes) ? <span><b>ECMEC</b> {ecmec(c.theory.estimated_minutes)}</span> : null}
-            <span><b>Pass</b> {c.theory.pass_mark}%</span>
+            {c.theory.pass_mark ? <span><b>Pass</b> {c.theory.pass_mark}%</span> : null}
             {anchors.length ? <span><b>Anchors</b> <span className="code">{anchors.map((a) => a.code).join(' · ')}</span></span> : null}
           </div>
-        )}
+        ) : null}
 
         {(c.theory?.needs_assessment || outcomes.length) ? (
           <>
