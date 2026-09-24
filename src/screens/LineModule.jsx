@@ -16,17 +16,24 @@ const PdfReader = lazy(() => import('../components/PdfReader'))
 import { Markdown, StructuredText, ClinicalBlocks } from '../components/ContentBlocks'
 import '../styles/module.css'
 
-// Exam pacing. One flat budget of 90 s per ANSWERED item — one SBA, or one
-// scenario of an EMQ (the deck flattens each EMQ group into its scenarios, so
-// `items.length` counts scenarios, not groups). Owner's call, 24 Sep 2026:
-// a single hard number, "90 seconds and not more than that", for real exam
-// pressure. It replaces the old 120 s / 150 s split, under which an EMQ paper
-// of 69 scenarios was quietly given 172 min.
-// Reference blueprint: EFRM Part 1 is 45 questions (22 SBA + 23 EMQ = 69
-// scenarios) in 120 min — 91 answered items, about 79 s each.
+// Exam pacing. One flat budget of 75 s per ANSWERED item — one SBA, or one
+// scenario of an EMQ. The deck flattens each EMQ group into its scenarios, so
+// `items.length` counts scenarios, not groups: the budget is per answer given,
+// which is the thing the candidate is actually racing.
+//
+// Where 75 comes from. EFRM Part 1 is 45 questions (22 SBA + 23 EMQ = 69
+// scenarios) in 120 min — 91 answered items, so the real paper runs at about
+// 79 s per answer. Owner's call, 24 Sep 2026: train DELIBERATELY UNDER real
+// pace, "better to train ourselves on a q-bank of 8000 questions than to test
+// ourselves on exam day and fail". 75 s is that margin. Do not relax it back
+// towards 79 s or 90 s without the owner — the tightness is the point.
+//
+// This replaces a 120 s / 150 s split whose comment assumed 150 s per EMQ
+// GROUP while the code charged it per SCENARIO: a 69-scenario paper was
+// silently given 172 min instead of 120.
 // MCQ is a 5-statement true/false block — extra practice, NOT part of the
 // EFRM Part 1 blueprint. Override any of these per module via `secsPerItem`.
-const SECS_PER_ITEM = { sba: 90, emq: 90, mcq: 90 }
+const SECS_PER_ITEM = { sba: 75, emq: 75, mcq: 75 }
 const fmtClock = (s) => {
   const v = Math.max(0, Math.round(s))
   return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`
