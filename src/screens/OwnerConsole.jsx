@@ -121,7 +121,6 @@ export default function OwnerConsole() {
       <section className="owner-stats">
         <div className="card owner-stat"><span className="os-num">{pendingUsers.length}</span><span>pending users</span></div>
         <div className="card owner-stat"><span className="os-num">{flags.length}</span><span>open flags</span></div>
-        <div className="card owner-stat"><span className="os-num">{content.length}</span><span>pending content nodes</span></div>
         <div className="card owner-stat"><span className="os-num">{totals.approved}</span><span>approved nodes</span></div>
         <div className="card owner-stat"><span className="os-num">{totals.lines}</span><span>registry lines</span></div>
       </section>
