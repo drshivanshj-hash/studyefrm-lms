@@ -16,16 +16,17 @@ const PdfReader = lazy(() => import('../components/PdfReader'))
 import { Markdown, StructuredText, ClinicalBlocks } from '../components/ContentBlocks'
 import '../styles/module.css'
 
-// Exam pacing. The target paper is ESHRE/EBCOG EFRM Part 1 — 2 papers × 45
-// questions (22 SBA + 23 EMQ) × 120 min, i.e. 160 s per question on average.
-// Owner's call is to train slightly ahead of that pace rather than at it:
-//   22 SBA × 120 s = 44 min
-//   23 EMQ × 150 s = 57.5 min   → 101.5 min against the real 120 min,
-// leaving roughly 18 min of headroom in the real exam. EMQ keeps the longer
-// budget because its option list is read on top of the stem.
+// Exam pacing. One flat budget of 90 s per ANSWERED item — one SBA, or one
+// scenario of an EMQ (the deck flattens each EMQ group into its scenarios, so
+// `items.length` counts scenarios, not groups). Owner's call, 24 Sep 2026:
+// a single hard number, "90 seconds and not more than that", for real exam
+// pressure. It replaces the old 120 s / 150 s split, under which an EMQ paper
+// of 69 scenarios was quietly given 172 min.
+// Reference blueprint: EFRM Part 1 is 45 questions (22 SBA + 23 EMQ = 69
+// scenarios) in 120 min — 91 answered items, about 79 s each.
 // MCQ is a 5-statement true/false block — extra practice, NOT part of the
 // EFRM Part 1 blueprint. Override any of these per module via `secsPerItem`.
-const SECS_PER_ITEM = { sba: 120, emq: 150, mcq: 150 }
+const SECS_PER_ITEM = { sba: 90, emq: 90, mcq: 90 }
 const fmtClock = (s) => {
   const v = Math.max(0, Math.round(s))
   return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`
