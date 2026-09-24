@@ -2,9 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CoverageBar, InProdPill, RegistryPill } from '../components/Primitives'
 import {
-  approveContentNode,
   getDomainCoverage,
-  getOwnerContentQueue,
   getOwnerUsers,
   getOwnerFlags,
   resolveFlag,
@@ -26,7 +24,6 @@ export default function OwnerConsole() {
   const { profile, signOut } = useAuth()
   const [users, setUsers] = useState([])
   const [coverage, setCoverage] = useState([])
-  const [content, setContent] = useState([])
   const [flags, setFlags] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(null)
@@ -36,10 +33,9 @@ export default function OwnerConsole() {
     setError('')
     setLoading(true)
     try {
-      const [u, c, q] = await Promise.all([getOwnerUsers(), getDomainCoverage(), getOwnerContentQueue()])
+      const [u, c] = await Promise.all([getOwnerUsers(), getDomainCoverage()])
       setUsers(u)
       setCoverage(c)
-      setContent(q)
       // flags load separately: a failure here must not blank the rest of the console
       getOwnerFlags().then(setFlags).catch(() => setFlags([]))
     } catch (err) {
@@ -56,8 +52,7 @@ export default function OwnerConsole() {
     lines: acc.lines + Number(d.lines || 0),
     guidelines: acc.guidelines + Number(d.guidelines || 0),
     approved: acc.approved + Number(d.approved || 0),
-    pending: acc.pending + Number(d.pending || 0),
-  }), { lines: 0, guidelines: 0, approved: 0, pending: 0 }), [coverage])
+  }), { lines: 0, guidelines: 0, approved: 0 }), [coverage])
 
   const emailById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.email])), [users])
   const SECTION_NAME = { theory: 'Theory', evidence: 'Evidence & Vantage', part1: 'Q-bank · Part 1', osce: 'OSCE', appraisal: 'Appraisal' }
@@ -79,19 +74,6 @@ export default function OwnerConsole() {
       setUsers((rows) => rows.map((r) => (r.id === user.id ? { ...r, ...updated } : r)))
     } catch (err) {
       setError(err.message || 'User approval failed.')
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  async function approveNode(node) {
-    setBusy(node.id)
-    setError('')
-    try {
-      await approveContentNode(node.id, profile?.email || 'owner')
-      await load()
-    } catch (err) {
-      setError(err.message || 'Content approval failed.')
     } finally {
       setBusy(null)
     }
@@ -168,37 +150,13 @@ export default function OwnerConsole() {
       </section>
 
       <section className="owner-section">
-        <div className="list-head"><span>Content approval</span><span className="list-count">{content.length} pending / needs edit</span></div>
-        <div className="card owner-card">
-          {content.length === 0 ? (
-            <div className="owner-empty">No pending content nodes.</div>
-          ) : content.map((node) => (
-            <div className="owner-row content" key={node.id}>
-              <div>
-                <div className="owner-title">{node.title}</div>
-                <div className="owner-meta">
-                  <span className="code">{node.slug}</span> · {node.node_type}
-                  {node.syllabus_lines?.code ? ` · ${node.syllabus_lines.code}` : ''}
-                  {node.domains?.number ? ` · D${node.domains.number}` : ''}
-                </div>
-              </div>
-              <StatusPill status={node.status} />
-              <button className="btn primary sm" disabled={busy === node.id} onClick={() => approveNode(node)}>
-                {busy === node.id ? 'Approving…' : 'Approve'}
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="owner-section">
         <div className="list-head"><span>Production tracker</span><span className="list-count">live domain_coverage</span></div>
         <div className="card admin-card">
           <table className="prodtable">
             <thead>
               <tr>
                 <th className="l">Domain</th><th>Lines</th><th>Guidelines</th><th>Deconstructed</th>
-                <th>Vantage</th><th>Approved</th><th>Pending</th><th className="r">Coverage</th>
+                <th>Vantage</th><th>Approved</th><th className="r">Coverage</th>
               </tr>
             </thead>
             <tbody>
@@ -206,7 +164,7 @@ export default function OwnerConsole() {
                 <tr key={d.domain_number}>
                   <td className="l dom"><span className="did">D{d.domain_number}</span>{d.domain_name}</td>
                   <td>{d.lines}</td><td>{d.guidelines}</td><td>{d.deconstructions}</td>
-                  <td>{d.vantage}</td><td>{d.approved}</td><td>{d.pending}</td>
+                  <td>{d.vantage}</td><td>{d.approved}</td>
                   <td className="r"><div className="mini-cov"><CoverageBar pct={Number(d.coverage_pct || 0)} /></div></td>
                 </tr>
               ))}
@@ -214,7 +172,7 @@ export default function OwnerConsole() {
           </table>
           <div className="owner-table-foot">
             <RegistryPill />
-            <InProdPill>{totals.pending > 0 ? `${totals.pending} pending` : 'Content In Production'}</InProdPill>
+            <InProdPill>Content In Production</InProdPill>
           </div>
         </div>
       </section>
